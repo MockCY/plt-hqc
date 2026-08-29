@@ -1,0 +1,213 @@
+-- 使用服务器上已有的业务数据库，不创建新的数据库。
+USE hqc_plt;
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    openid VARCHAR(64) NOT NULL,
+    unionid VARCHAR(64) NULL,
+    phone VARCHAR(32) NULL,
+    country_code VARCHAR(8) NULL,
+    nickname VARCHAR(40) NULL,
+    avatar_url VARCHAR(500) NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_users_openid (openid),
+    KEY idx_users_phone (phone)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME(3) NOT NULL,
+    revoked_at DATETIME(3) NULL,
+    last_seen_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_auth_sessions_token_hash (token_hash),
+    KEY idx_auth_sessions_user_id (user_id),
+    KEY idx_auth_sessions_expires_at (expires_at),
+    CONSTRAINT fk_auth_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS courses (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(80) NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    duration_minutes INT NOT NULL,
+    level VARCHAR(30) NOT NULL,
+    equipment VARCHAR(80) NOT NULL,
+    summary VARCHAR(300) NOT NULL,
+    cover_image VARCHAR(500) NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_courses_status_sort (status, sort_order)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS exercises (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(80) NOT NULL,
+    body_part VARCHAR(30) NOT NULL,
+    level VARCHAR(30) NOT NULL,
+    equipment VARCHAR(80) NOT NULL,
+    suggested_sets INT NOT NULL DEFAULT 2,
+    target VARCHAR(40) NOT NULL,
+    cue VARCHAR(500) NOT NULL,
+    safety_tip VARCHAR(500) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_exercises_status_sort (status, sort_order),
+    KEY idx_exercises_body_part (body_part)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS course_exercises (
+    course_id BIGINT UNSIGNED NOT NULL,
+    exercise_id BIGINT UNSIGNED NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    duration_seconds INT NULL,
+    target VARCHAR(40) NULL,
+    PRIMARY KEY (course_id, exercise_id),
+    CONSTRAINT fk_course_exercises_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_course_exercises_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS training_plans (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(80) NOT NULL,
+    week_number INT NOT NULL DEFAULT 1,
+    sessions_per_week INT NOT NULL DEFAULT 3,
+    description VARCHAR(300) NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_training_plans_active_sort (active, sort_order)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS training_plan_items (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    plan_id BIGINT UNSIGNED NOT NULL,
+    course_id BIGINT UNSIGNED NOT NULL,
+    day_offset INT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    KEY idx_plan_items_plan (plan_id, day_offset, sort_order),
+    CONSTRAINT fk_plan_items_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_plan_items_course FOREIGN KEY (course_id) REFERENCES courses(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS workout_records (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    course_id BIGINT UNSIGNED NOT NULL,
+    duration_minutes INT NOT NULL,
+    completion_percent INT NOT NULL DEFAULT 100,
+    started_at DATETIME(3) NOT NULL,
+    completed_at DATETIME(3) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_workout_records_user_completed (user_id, completed_at),
+    KEY idx_workout_records_course (course_id),
+    CONSTRAINT fk_workout_records_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_workout_records_course FOREIGN KEY (course_id) REFERENCES courses(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id BIGINT UNSIGNED NOT NULL,
+    reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    sound_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_user_settings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_favorites (
+    user_id BIGINT UNSIGNED NOT NULL,
+    item_type VARCHAR(20) NOT NULL,
+    item_id BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (user_id, item_type, item_id),
+    KEY idx_user_favorites_type_item (item_type, item_id),
+    CONSTRAINT fk_user_favorites_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS custom_courses (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(80) NOT NULL,
+    duration_minutes INT NOT NULL,
+    summary VARCHAR(300) NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_custom_courses_user (user_id, created_at),
+    CONSTRAINT fk_custom_courses_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS custom_course_exercises (
+    custom_course_id BIGINT UNSIGNED NOT NULL,
+    exercise_id BIGINT UNSIGNED NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (custom_course_id, exercise_id),
+    CONSTRAINT fk_custom_course_items_course FOREIGN KEY (custom_course_id) REFERENCES custom_courses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_custom_course_items_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS custom_workout_records (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    custom_course_id BIGINT UNSIGNED NOT NULL,
+    duration_minutes INT NOT NULL,
+    completion_percent INT NOT NULL DEFAULT 100,
+    started_at DATETIME(3) NOT NULL,
+    completed_at DATETIME(3) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_custom_workouts_user_completed (user_id, completed_at),
+    CONSTRAINT fk_custom_workouts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_custom_workouts_course FOREIGN KEY (custom_course_id) REFERENCES custom_courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_plan_selections (
+    user_id BIGINT UNSIGNED NOT NULL,
+    plan_id BIGINT UNSIGNED NOT NULL,
+    selected_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (user_id),
+    KEY idx_user_plan_selections_plan (plan_id),
+    CONSTRAINT fk_user_plan_selections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_plan_selections_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    content VARCHAR(1000) NOT NULL,
+    contact VARCHAR(100) NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_user_feedback_user_created (user_id, created_at),
+    CONSTRAINT fk_user_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS campaign_checkins (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    campaign_code VARCHAR(40) NOT NULL,
+    checkin_date DATE NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_campaign_checkins_day (user_id, campaign_code, checkin_date),
+    KEY idx_campaign_checkins_campaign_date (campaign_code, checkin_date),
+    CONSTRAINT fk_campaign_checkins_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

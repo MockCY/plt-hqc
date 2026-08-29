@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.PlanMapper">
+
+    <resultMap id="planHeaderResultMap" type="com.qinglian.fitness.mapper.PlanMapper$PlanHeader">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="week_number" javaType="_int"/>
+            <arg column="sessions_per_week" javaType="_int"/>
+            <arg column="description" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="planItemResultMap" type="com.qinglian.fitness.mapper.PlanMapper$PlanItemRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="day_offset" javaType="_int"/>
+            <arg column="course_id" javaType="_long"/>
+            <arg column="course_title" javaType="java.lang.String"/>
+            <arg column="duration_minutes" javaType="_int"/>
+            <arg column="item_status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="planSummaryResultMap" type="com.qinglian.fitness.plan.PlanDtos$PlanSummary">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="sessions_per_week" javaType="_int"/>
+            <arg column="description" javaType="java.lang.String"/>
+            <arg column="course_count" javaType="_int"/>
+        </constructor>
+    </resultMap>
+
+    <select id="selectedPlanId" resultType="long">
+        select plan_id from user_plan_selections where user_id = #{userId}
+    </select>
+
+    <select id="findPlanHeader" resultMap="planHeaderResultMap">
+        select id, title, week_number, sessions_per_week, description
+        from training_plans
+        where active = true
+        <if test="planId != null">
+            and id = #{planId}
+        </if>
+        order by sort_order, id
+        limit 1
+    </select>
+
+    <select id="findPlanItems" resultMap="planItemResultMap">
+        select pi.id, pi.day_offset, pi.course_id, c.title course_title, c.duration_minutes,
+               case when exists (
+                   select 1 from workout_records wr
+                   where wr.user_id = #{userId} and wr.course_id = pi.course_id
+                     and wr.completed_at >= #{weekStart} and wr.completed_at &lt; #{weekEnd}
+               ) then 'COMPLETED' else 'PENDING' end item_status
+        from training_plan_items pi
+        join courses c on c.id = pi.course_id
+        where pi.plan_id = #{planId}
+        order by pi.day_offset, pi.sort_order
+    </select>
+
+    <select id="catalog" resultMap="planSummaryResultMap">
+        select p.id, p.title, p.sessions_per_week, p.description, count(pi.id) course_count
+        from training_plans p
+        left join training_plan_items pi on pi.plan_id = p.id
+        where p.active = true
+        group by p.id, p.title, p.sessions_per_week, p.description, p.sort_order
+        order by p.sort_order, p.id
+    </select>
+
+    <update id="updateSelection">
+        update user_plan_selections
+        set plan_id = #{planId}, selected_at = current_timestamp
+        where user_id = #{userId}
+    </update>
+
+    <insert id="createSelection">
+        insert into user_plan_selections(user_id, plan_id)
+        values (#{userId}, #{planId})
+    </insert>
+
+</mapper>

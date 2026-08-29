@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: ARVELLO
+  datasource:
+    url: ${DB_URL:jdbc:mysql://47.111.172.151:3306/hqc_plt?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:chen0226}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 10000
+  sql:
+    init:
+      mode: never
+
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+
+wechat:
+  app-id: ${WECHAT_APP_ID:wx37520a19c8dba100}
+  app-secret: ${WECHAT_APP_SECRET:4ccada04ae920f42b7e27e3447ccfb2e}
+  api-base-url: https://api.weixin.qq.com
+
+app:
+  session-ttl: ${SESSION_TTL:30d}
+  session-touch-interval: 5m
+
+logging:
+  level:
+    root: INFO
+    com.qinglian.fitness: INFO
+
+mybatis:
+  mapper-locations: classpath:/mappers/*.xml

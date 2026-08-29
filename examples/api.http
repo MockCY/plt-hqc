@@ -1,0 +1,59 @@
+@baseUrl = http://127.0.0.1:8080
+@token = 请替换为登录响应中的token
+
+### 健康检查
+GET {{baseUrl}}/api/health
+
+### 微信登录，code 来自 uni.login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "code": "微信登录code"
+}
+
+### 手机号快速验证：两个 code 的用途不同
+POST {{baseUrl}}/api/auth/wechat-phone
+Content-Type: application/json
+
+{
+  "loginCode": "uni.login返回的code",
+  "phoneCode": "getPhoneNumber事件返回的code"
+}
+
+### 课程列表
+GET {{baseUrl}}/api/courses
+Authorization: Bearer {{token}}
+
+### 动作列表
+GET {{baseUrl}}/api/exercises?bodyPart=胸部
+Authorization: Bearer {{token}}
+
+### 当前计划
+GET {{baseUrl}}/api/plans/current
+Authorization: Bearer {{token}}
+
+### 新增训练记录
+POST {{baseUrl}}/api/workout-records
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "courseId": 1,
+  "durationMinutes": 25,
+  "completionPercent": 100,
+  "startedAt": "2026-08-20T10:00:00Z"
+}
+
+### 训练统计
+GET {{baseUrl}}/api/workout-records/stats
+Authorization: Bearer {{token}}
+
+### 个人资料
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{token}}
+
+### 注销
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{token}}
+

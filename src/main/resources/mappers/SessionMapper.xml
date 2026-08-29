@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.SessionMapper">
+
+    <resultMap id="sessionUserResultMap" type="com.qinglian.fitness.auth.SessionRepository$SessionUser">
+        <constructor>
+            <idArg column="user_id" javaType="_long"/>
+            <arg column="last_seen_at" javaType="java.time.Instant"/>
+            <arg column="status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="create">
+        insert into auth_sessions(user_id, token_hash, expires_at)
+        values (#{userId}, #{tokenHash}, #{expiresAt})
+    </insert>
+
+    <select id="findActive" resultMap="sessionUserResultMap">
+        select s.user_id, s.last_seen_at, u.status
+        from auth_sessions s
+        join users u on u.id = s.user_id
+        where s.token_hash = #{tokenHash}
+          and s.expires_at > #{now}
+          and s.revoked_at is null
+    </select>
+
+    <update id="touch">
+        update auth_sessions set last_seen_at = #{now} where token_hash = #{tokenHash}
+    </update>
+
+    <update id="revoke">
+        update auth_sessions
+        set revoked_at = #{now}
+        where token_hash = #{tokenHash} and revoked_at is null
+    </update>
+
+</mapper>

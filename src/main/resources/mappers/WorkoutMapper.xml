@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.WorkoutMapper">
+
+    <resultMap id="workoutResultMap" type="com.qinglian.fitness.workout.WorkoutDtos$WorkoutView">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="course_id" javaType="java.lang.Long"/>
+            <arg column="custom_course_id" javaType="java.lang.Long"/>
+            <arg column="course_title" javaType="java.lang.String"/>
+            <arg column="duration_minutes" javaType="_int"/>
+            <arg column="completion_percent" javaType="_int"/>
+            <arg column="started_at" javaType="java.time.Instant"/>
+            <arg column="completed_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="statsResultMap" type="com.qinglian.fitness.mapper.WorkoutMapper$StatsBase">
+        <constructor>
+            <arg column="completed_count" javaType="_long"/>
+            <arg column="total_minutes" javaType="_long"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="create" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into workout_records(
+            user_id, course_id, duration_minutes, completion_percent, started_at, completed_at
+        )
+        values (
+            #{userId}, #{courseId}, #{durationMinutes}, #{completionPercent}, #{startedAt}, #{completedAt}
+        )
+    </insert>
+
+    <insert id="createCustom" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into custom_workout_records(
+            user_id, custom_course_id, duration_minutes, completion_percent, started_at, completed_at
+        )
+        values (
+            #{userId}, #{customCourseId}, #{durationMinutes}, #{completionPercent}, #{startedAt}, #{completedAt}
+        )
+    </insert>
+
+    <select id="countOwnedCustomCourse" resultType="int">
+        select count(*)
+        from custom_courses
+        where id = #{courseId} and user_id = #{userId}
+    </select>
+
+    <select id="findById" resultMap="workoutResultMap">
+        select wr.id, wr.course_id, cast(null as bigint) custom_course_id, c.title course_title,
+               wr.duration_minutes, wr.completion_percent, wr.started_at, wr.completed_at
+        from workout_records wr
+        join courses c on c.id = wr.course_id
+        where wr.id = #{id} and wr.user_id = #{userId}
+    </select>
+
+    <select id="findCustomById" resultMap="workoutResultMap">
+        select cwr.id, cast(null as bigint) course_id, cwr.custom_course_id, cc.title course_title,
+               cwr.duration_minutes, cwr.completion_percent, cwr.started_at, cwr.completed_at
+        from custom_workout_records cwr
+        join custom_courses cc on cc.id = cwr.custom_course_id
+        where cwr.id = #{id} and cwr.user_id = #{userId}
+    </select>
+
+    <select id="findRecent" resultMap="workoutResultMap">
+        select * from (
+            select wr.id, wr.course_id, cast(null as bigint) custom_course_id, c.title course_title,
+                   wr.duration_minutes, wr.completion_percent, wr.started_at, wr.completed_at
+            from workout_records wr
+            join courses c on c.id = wr.course_id
+            where wr.user_id = #{userId}
+            union all
+            select cwr.id, cast(null as bigint) course_id, cwr.custom_course_id, cc.title course_title,
+                   cwr.duration_minutes, cwr.completion_percent, cwr.started_at, cwr.completed_at
+            from custom_workout_records cwr
+            join custom_courses cc on cc.id = cwr.custom_course_id
+            where cwr.user_id = #{userId}
+        ) history
+        order by completed_at desc
+        limit #{limit}
+    </select>
+
+    <select id="stats" resultMap="statsResultMap">
+        select count(*) completed_count, coalesce(sum(duration_minutes), 0) total_minutes
+        from (
+            select duration_minutes, completion_percent from workout_records where user_id = #{userId}
+            union all
+            select duration_minutes, completion_percent from custom_workout_records where user_id = #{userId}
+        ) history
+        where completion_percent >= 80
+    </select>
+
+    <select id="completedDates" resultType="java.time.LocalDate">
+        select distinct cast(completed_at as date) completed_date
+        from (
+            select completed_at, completion_percent from workout_records where user_id = #{userId}
+            union all
+            select completed_at, completion_percent from custom_workout_records where user_id = #{userId}
+        ) history
+        where completion_percent >= 80
+        order by completed_date desc
+    </select>
+
+</mapper>

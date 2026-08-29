@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.FeedbackMapper">
+
+    <resultMap id="feedbackResultMap" type="com.qinglian.fitness.feedback.FeedbackDtos$FeedbackView">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="category" javaType="java.lang.String"/>
+            <arg column="content" javaType="java.lang.String"/>
+            <arg column="contact" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findAll" resultMap="feedbackResultMap">
+        select id, category, content, contact, status, created_at
+        from user_feedback
+        where user_id = #{userId}
+        order by created_at desc
+    </select>
+
+    <select id="findById" resultMap="feedbackResultMap">
+        select id, category, content, contact, status, created_at
+        from user_feedback
+        where id = #{id} and user_id = #{userId}
+    </select>
+
+    <insert id="create" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into user_feedback(user_id, category, content, contact)
+        values (#{userId}, #{category}, #{content}, #{contact})
+    </insert>
+
+</mapper>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.CampaignMapper">
+
+    <insert id="createCheckin">
+        insert into campaign_checkins(user_id, campaign_code, checkin_date)
+        values (#{userId}, #{code}, #{date})
+    </insert>
+
+    <select id="countForDate" resultType="int">
+        select count(*)
+        from campaign_checkins
+        where user_id = #{userId}
+          and campaign_code = #{code}
+          and checkin_date = #{date}
+    </select>
+
+    <select id="countAll" resultType="int">
+        select count(*)
+        from campaign_checkins
+        where user_id = #{userId} and campaign_code = #{code}
+    </select>
+
+</mapper>

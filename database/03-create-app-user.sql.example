@@ -1,0 +1,11 @@
+-- 用管理员账号在 MySQL 服务器本机执行，并将占位符改为高强度随机密码。
+-- 如果 Java 服务与 MySQL 在同一台服务器，使用 localhost，避免开放公网 3306。
+
+CREATE USER IF NOT EXISTS 'fitness_app'@'localhost'
+    IDENTIFIED BY 'REPLACE_WITH_A_LONG_RANDOM_PASSWORD';
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON hqc_plt.*
+    TO 'fitness_app'@'localhost';
+
+FLUSH PRIVILEGES;

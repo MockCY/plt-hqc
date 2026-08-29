@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.ProfileMapper">
+
+    <resultMap id="settingsResultMap" type="com.qinglian.fitness.user.ProfileDtos$UserSettings">
+        <constructor>
+            <arg column="reminder_enabled" javaType="_boolean"/>
+            <arg column="sound_enabled" javaType="_boolean"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findSettings" resultMap="settingsResultMap">
+        select reminder_enabled, sound_enabled
+        from user_settings
+        where user_id = #{userId}
+    </select>
+
+    <update id="updateProfile">
+        update users
+        set nickname = coalesce(#{nickname}, nickname),
+            avatar_url = coalesce(#{avatarUrl}, avatar_url),
+            updated_at = current_timestamp
+        where id = #{userId}
+    </update>
+
+    <update id="updateSettings">
+        update user_settings
+        set reminder_enabled = coalesce(#{reminderEnabled}, reminder_enabled),
+            sound_enabled = coalesce(#{soundEnabled}, sound_enabled),
+            updated_at = current_timestamp
+        where user_id = #{userId}
+    </update>
+
+    <insert id="ensureSettings">
+        insert into user_settings(user_id, reminder_enabled, sound_enabled)
+        select #{userId}, true, true
+        where not exists (select 1 from user_settings where user_id = #{userId})
+    </insert>
+
+</mapper>

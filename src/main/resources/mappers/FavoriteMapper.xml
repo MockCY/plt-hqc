@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.FavoriteMapper">
+
+    <resultMap id="favoriteResultMap" type="com.qinglian.fitness.favorite.FavoriteDtos$FavoriteView">
+        <constructor>
+            <arg column="item_type" javaType="java.lang.String"/>
+            <arg column="item_id" javaType="_long"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findAll" resultMap="favoriteResultMap">
+        select item_type, item_id, created_at
+        from user_favorites
+        where user_id = #{userId} and item_type = #{itemType}
+        order by created_at desc
+    </select>
+
+    <insert id="add">
+        insert into user_favorites(user_id, item_type, item_id)
+        values (#{userId}, #{itemType}, #{itemId})
+    </insert>
+
+    <delete id="remove">
+        delete from user_favorites
+        where user_id = #{userId} and item_type = #{itemType} and item_id = #{itemId}
+    </delete>
+
+    <select id="count" resultType="int">
+        select count(*)
+        from user_favorites
+        where user_id = #{userId} and item_type = #{itemType} and item_id = #{itemId}
+    </select>
+
+</mapper>
