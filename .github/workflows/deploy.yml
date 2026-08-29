@@ -10,21 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 拉取私有仓库代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 在 GitHub Actions 上构建 Docker 镜像
+      # 在 GitHub Actions 机器上构建
       - name: Build Docker image
         run: |
           docker build -t plt-hgc:latest .
 
-      # 3. 把 Docker 镜像打包成 tar
+      # 打包镜像
       - name: Save Docker image
         run: |
           docker save plt-hgc:latest -o plt-hgc.tar
 
-      # 4. 上传镜像到阿里云服务器
+      # 上传到阿里云
       - name: Upload Docker image
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -34,7 +33,7 @@ jobs:
           source: "plt-hgc.tar"
           target: "/home/admin/deploy"
 
-      # 5. 登录阿里云并部署
+      # 阿里云只负责运行
       - name: Deploy to Alibaba Cloud
         uses: appleboy/ssh-action@v1
         with:
@@ -46,21 +45,16 @@ jobs:
 
             cd /home/admin/deploy
 
-            # 导入新镜像
             docker load -i plt-hgc.tar
 
-            # 删除旧容器
             docker rm -f plt-hgc 2>/dev/null || true
 
-            # 启动新容器
             docker run -d \
               --name plt-hgc \
               --restart unless-stopped \
               -p 127.0.0.1:8080:8080 \
               plt-hgc:latest
 
-            # 删除上传的 tar 包
             rm -f plt-hgc.tar
 
-            # 清理没用的旧镜像
             docker image prune -f
