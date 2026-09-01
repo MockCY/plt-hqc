@@ -6,6 +6,7 @@ import com.qinglian.fitness.catalog.CatalogDtos.CourseView;
 import com.qinglian.fitness.catalog.CatalogDtos.ExerciseView;
 import com.qinglian.fitness.mapper.CatalogMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,8 +35,16 @@ public class CatalogRepository {
         }
         return Optional.of(new CourseDetailView(
             row.id(), row.title(), row.type(), row.durationMinutes(), row.level(),
-            row.equipment(), row.summary(), row.coverImage(), catalogMapper.findCourseExercises(row.id())
+            row.equipment(), row.summary(), row.coverImage(), row.videoUrl(), row.videoCoverImage(),
+            row.videoDurationSeconds(), row.viewCount(), catalogMapper.findCourseExercises(row.id())
         ));
+    }
+
+    @Transactional
+    public Optional<CourseDetailView> viewCourse(long id, String visitorKey) {
+        if (catalogMapper.findCourse(id) == null) return Optional.empty();
+        if (catalogMapper.recordCourseView(id, visitorKey) == 1) catalogMapper.incrementCourseViewCount(id);
+        return findCourse(id);
     }
 
     private String normalizeFilter(String value) {

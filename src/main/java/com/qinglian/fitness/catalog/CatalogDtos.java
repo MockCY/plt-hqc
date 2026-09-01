@@ -16,6 +16,10 @@ public final class CatalogDtos {
         String equipment,
         String summary,
         String coverImage,
+        String videoUrl,
+        String videoCoverImage,
+        Integer videoDurationSeconds,
+        long viewCount,
         int exerciseCount
     ) {
     }
@@ -29,7 +33,11 @@ public final class CatalogDtos {
         int suggestedSets,
         String target,
         String cue,
-        String safetyTip
+        String safetyTip,
+        String coverImage,
+        String videoUrl,
+        String videoCoverImage,
+        Integer videoDurationSeconds
     ) {
     }
 
@@ -39,7 +47,11 @@ public final class CatalogDtos {
         String target,
         String cue,
         String safetyTip,
-        int durationSeconds
+        int durationSeconds,
+        String coverImage,
+        String videoUrl,
+        String videoCoverImage,
+        Integer videoDurationSeconds
     ) {
     }
 
@@ -52,6 +64,10 @@ public final class CatalogDtos {
         String equipment,
         String summary,
         String coverImage,
+        String videoUrl,
+        String videoCoverImage,
+        Integer videoDurationSeconds,
+        long viewCount,
         List<CourseExerciseView> exercises
     ) {
     }

@@ -14,6 +14,10 @@
             <arg column="equipment" javaType="java.lang.String"/>
             <arg column="summary" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="video_url" javaType="java.lang.String"/>
+            <arg column="video_cover_image" javaType="java.lang.String"/>
+            <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
+            <arg column="view_count" javaType="_long"/>
             <arg column="exercise_count" javaType="_int"/>
         </constructor>
     </resultMap>
@@ -29,6 +33,10 @@
             <arg column="target" javaType="java.lang.String"/>
             <arg column="cue" javaType="java.lang.String"/>
             <arg column="safety_tip" javaType="java.lang.String"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="video_url" javaType="java.lang.String"/>
+            <arg column="video_cover_image" javaType="java.lang.String"/>
+            <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
         </constructor>
     </resultMap>
 
@@ -42,6 +50,10 @@
             <arg column="equipment" javaType="java.lang.String"/>
             <arg column="summary" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="video_url" javaType="java.lang.String"/>
+            <arg column="video_cover_image" javaType="java.lang.String"/>
+            <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
+            <arg column="view_count" javaType="_long"/>
         </constructor>
     </resultMap>
 
@@ -53,12 +65,17 @@
             <arg column="cue" javaType="java.lang.String"/>
             <arg column="safety_tip" javaType="java.lang.String"/>
             <arg column="duration_seconds" javaType="_int"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="video_url" javaType="java.lang.String"/>
+            <arg column="video_cover_image" javaType="java.lang.String"/>
+            <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
         </constructor>
     </resultMap>
 
     <select id="findCourses" resultMap="courseResultMap">
         select c.id, c.title, c.type, c.duration_minutes, c.level, c.equipment,
-               c.summary, c.cover_image, count(ce.exercise_id) exercise_count
+               c.summary, c.cover_image, c.video_url, c.video_cover_image, c.video_duration_seconds, c.view_count,
+               count(ce.exercise_id) exercise_count
         from courses c
         left join course_exercises ce on ce.course_id = c.id
         where c.status = 'PUBLISHED'
@@ -71,12 +88,13 @@
                  or c.type like concat('%', #{query}, '%'))
         </if>
         group by c.id, c.title, c.type, c.duration_minutes, c.level, c.equipment,
-                 c.summary, c.cover_image, c.sort_order
+                 c.summary, c.cover_image, c.video_url, c.video_cover_image, c.video_duration_seconds, c.view_count, c.sort_order
         order by c.sort_order, c.id
     </select>
 
     <select id="findExercises" resultMap="exerciseResultMap">
-        select id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip
+        select id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
+               cover_image, video_url, video_cover_image, video_duration_seconds
         from exercises
         where status = 'PUBLISHED'
         <if test="bodyPart != null">
@@ -90,18 +108,29 @@
     </select>
 
     <select id="findCourse" resultMap="courseDetailResultMap">
-        select id, title, type, duration_minutes, level, equipment, summary, cover_image
+        select id, title, type, duration_minutes, level, equipment, summary, cover_image,
+               video_url, video_cover_image, video_duration_seconds, view_count
         from courses
         where id = #{id} and status = 'PUBLISHED'
     </select>
 
     <select id="findCourseExercises" resultMap="courseExerciseResultMap">
         select e.id, e.name, coalesce(ce.target, e.target) target, e.cue, e.safety_tip,
-               coalesce(ce.duration_seconds, 60) duration_seconds
+               coalesce(ce.duration_seconds, 60) duration_seconds,
+               e.cover_image, e.video_url, e.video_cover_image, e.video_duration_seconds
         from course_exercises ce
         join exercises e on e.id = ce.exercise_id
         where ce.course_id = #{courseId} and e.status = 'PUBLISHED'
         order by ce.sort_order, e.id
     </select>
+
+    <insert id="recordCourseView">
+        insert ignore into course_views(course_id, visitor_key, viewed_on)
+        values(#{courseId}, #{visitorKey}, current_date())
+    </insert>
+
+    <update id="incrementCourseViewCount">
+        update courses set view_count = view_count + 1 where id = #{courseId}
+    </update>
 
 </mapper>

@@ -8,6 +8,8 @@ import java.time.LocalDate;
 @Mapper
 public interface CampaignMapper {
 
+    CampaignContentRow findOpenCampaign(@Param("code") String code, @Param("date") LocalDate date);
+
     int createCheckin(
         @Param("userId") long userId,
         @Param("code") String code,
@@ -21,4 +23,7 @@ public interface CampaignMapper {
     );
 
     int countAll(@Param("userId") long userId, @Param("code") String code);
+
+    record CampaignContentRow(String title, String rulesText) {
+    }
 }

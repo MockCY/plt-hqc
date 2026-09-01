@@ -78,6 +78,38 @@ class AuthFlowIntegrationTest {
             .andExpect(jsonPath("$", hasSize(3)))
             .andExpect(jsonPath("$[0].title").value("全身激活"));
 
+        mockMvc.perform(get("/api/devices/current")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("DEVICE_NOT_BOUND"));
+
+        mockMvc.perform(post("/api/devices/bind")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"serialNumber":"ARV240428MNT001"}
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Arvello 柔力核心床"))
+            .andExpect(jsonPath("$.category").value("核心床"))
+            .andExpect(jsonPath("$.serialNumber").value("ARV240428MNT001"))
+            .andExpect(jsonPath("$.bedType").value("标准款 · Mint"))
+            .andExpect(jsonPath("$.boundAt").exists());
+
+        mockMvc.perform(get("/api/devices/current")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.serialNumber").value("ARV240428MNT001"));
+
+        mockMvc.perform(delete("/api/devices/current")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/devices/current")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("DEVICE_NOT_BOUND"));
+
         mockMvc.perform(put("/api/favorites/EXERCISE/1")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())

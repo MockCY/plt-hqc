@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.AdminAuthMapper">
+
+    <resultMap id="adminAccountMap" type="com.qinglian.fitness.mapper.AdminAuthMapper$AdminAccountRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="username" javaType="java.lang.String"/>
+            <arg column="password_hash" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="adminSessionMap" type="com.qinglian.fitness.mapper.AdminAuthMapper$AdminSessionRow">
+        <constructor>
+            <idArg column="admin_id" javaType="_long"/>
+            <arg column="username" javaType="java.lang.String"/>
+            <arg column="last_seen_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findByUsername" resultMap="adminAccountMap">
+        select id, username, password_hash, status
+        from admin_accounts
+        where username = #{username}
+    </select>
+
+    <insert id="createAccount">
+        insert into admin_accounts(username, password_hash, status)
+        values (#{username}, #{passwordHash}, 'ACTIVE')
+    </insert>
+
+    <insert id="createSession">
+        insert into admin_sessions(admin_id, token_hash, expires_at)
+        values (#{adminId}, #{tokenHash}, #{expiresAt})
+    </insert>
+
+    <select id="findActiveSession" resultMap="adminSessionMap">
+        select s.admin_id, a.username, s.last_seen_at
+        from admin_sessions s
+        join admin_accounts a on a.id = s.admin_id
+        where s.token_hash = #{tokenHash}
+          and s.revoked_at is null
+          and s.expires_at &gt; #{now}
+          and a.status = 'ACTIVE'
+    </select>
+
+    <update id="touch">
+        update admin_sessions set last_seen_at = #{now} where token_hash = #{tokenHash}
+    </update>
+
+    <update id="revoke">
+        update admin_sessions
+        set revoked_at = #{now}
+        where token_hash = #{tokenHash} and revoked_at is null
+    </update>
+
+    <update id="recordLogin">
+        update admin_accounts set last_login_at = #{now} where id = #{adminId}
+    </update>
+
+    <insert id="insertAudit">
+        insert into admin_audit_logs(admin_id, action, target_type, target_id, summary, ip_address)
+        values (#{adminId}, #{action}, #{targetType}, #{targetId}, #{summary}, #{ipAddress})
+    </insert>
+
+</mapper>

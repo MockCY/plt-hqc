@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.DeviceMapper">
+    <resultMap id="deviceResultMap" type="com.qinglian.fitness.device.DeviceDtos$DeviceView">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="code" javaType="java.lang.String"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="category" javaType="java.lang.String"/>
+            <arg column="connected" javaType="_boolean"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="boundDeviceResultMap" type="com.qinglian.fitness.device.DeviceDtos$BoundDevice">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="code" javaType="java.lang.String"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="category" javaType="java.lang.String"/>
+            <arg column="connected" javaType="_boolean"/>
+            <arg column="device_model" javaType="java.lang.String"/>
+            <arg column="bed_type" javaType="java.lang.String"/>
+            <arg column="spring_config" javaType="java.lang.String"/>
+            <arg column="serial_number" javaType="java.lang.String"/>
+            <arg column="purchased_on" javaType="java.time.LocalDate"/>
+            <arg column="bound_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <sql id="deviceColumns">id, code, name, category, connected</sql>
+
+    <select id="findActive" resultMap="deviceResultMap">
+        select <include refid="deviceColumns"/> from devices where active = true order by sort_order, id
+    </select>
+
+    <select id="findCurrent" resultMap="boundDeviceResultMap">
+        select d.id, d.code, d.name, d.category, d.connected, d.device_model, d.bed_type,
+               d.spring_config, d.serial_number, d.purchased_on, uds.selected_at as bound_at
+        from user_device_selections uds join devices d on d.id = uds.device_id
+        where uds.user_id = #{userId} and d.active = true
+    </select>
+
+    <select id="findById" resultMap="deviceResultMap">
+        select <include refid="deviceColumns"/> from devices where id = #{id} and active = true
+    </select>
+
+    <select id="findBySerialNumber" resultMap="deviceResultMap">
+        select <include refid="deviceColumns"/>
+        from devices
+        where upper(serial_number) = upper(#{serialNumber}) and active = true
+    </select>
+
+    <select id="findBindingUserId" resultType="java.lang.Long">
+        select user_id from user_device_selections where device_id = #{deviceId}
+    </select>
+
+    <update id="updateSelection">
+        update user_device_selections set device_id = #{deviceId}, selected_at = current_timestamp where user_id = #{userId}
+    </update>
+
+    <insert id="createSelection">
+        insert into user_device_selections(user_id, device_id) values (#{userId}, #{deviceId})
+    </insert>
+
+    <delete id="deleteSelection">
+        delete from user_device_selections where user_id = #{userId}
+    </delete>
+</mapper>

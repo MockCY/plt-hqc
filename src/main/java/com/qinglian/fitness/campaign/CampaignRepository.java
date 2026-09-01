@@ -3,6 +3,8 @@ package com.qinglian.fitness.campaign;
 import com.qinglian.fitness.campaign.CampaignDtos.CampaignStatus;
 import com.qinglian.fitness.campaign.CampaignDtos.CheckinResult;
 import com.qinglian.fitness.mapper.CampaignMapper;
+import com.qinglian.fitness.common.ApiException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,12 +14,6 @@ import java.util.List;
 @Repository
 public class CampaignRepository {
 
-    private static final List<String> RULES = List.of(
-        "完成当日任意一节训练后即可打卡",
-        "每天最多记录一次，连续打卡会保留在个人记录中",
-        "训练过程中请量力而行，身体不适时立即停止"
-    );
-
     private final CampaignMapper campaignMapper;
 
     public CampaignRepository(CampaignMapper campaignMapper) {
@@ -26,10 +22,14 @@ public class CampaignRepository {
 
     public CampaignStatus status(long userId, String code) {
         LocalDate today = LocalDate.now();
+        CampaignMapper.CampaignContentRow content = campaignMapper.findOpenCampaign(code, today);
+        if (content == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "CAMPAIGN_NOT_FOUND", "训练营不存在或暂未开放");
+        }
         return new CampaignStatus(
             code,
-            "8月马甲线训练营",
-            RULES,
+            content.title(),
+            content.rulesText().lines().filter(line -> !line.isBlank()).toList(),
             countForDate(userId, code, today) > 0,
             countAll(userId, code),
             today
@@ -38,6 +38,7 @@ public class CampaignRepository {
 
     @Transactional
     public CheckinResult checkin(long userId, String code) {
+        status(userId, code);
         LocalDate today = LocalDate.now();
         if (countForDate(userId, code, today) == 0) {
             campaignMapper.createCheckin(userId, code, today);

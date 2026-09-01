@@ -1,0 +1,624 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.AdminMapper">
+
+    <resultMap id="trendPointMap" type="com.qinglian.fitness.admin.AdminDtos$TrendPoint">
+        <constructor>
+            <arg column="workout_date" javaType="java.time.LocalDate"/>
+            <arg column="workout_count" javaType="_long"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="recentContentMap" type="com.qinglian.fitness.admin.AdminDtos$RecentContent">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="kind" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="userRowMap" type="com.qinglian.fitness.admin.AdminDtos$UserRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="nickname" javaType="java.lang.String"/>
+            <arg column="phone" javaType="java.lang.String"/>
+            <arg column="avatar_url" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="workout_count" javaType="_long"/>
+            <arg column="total_minutes" javaType="_long"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="courseDataMap" type="com.qinglian.fitness.mapper.AdminMapper$CourseData">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="type" javaType="java.lang.String"/>
+            <arg column="duration_minutes" javaType="_int"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="equipment" javaType="java.lang.String"/>
+            <arg column="summary" javaType="java.lang.String"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="video_url" javaType="java.lang.String"/>
+            <arg column="video_cover_image" javaType="java.lang.String"/>
+            <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
+            <arg column="view_count" javaType="_long"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="exerciseRowMap" type="com.qinglian.fitness.admin.AdminDtos$ExerciseRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="body_part" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="equipment" javaType="java.lang.String"/>
+            <arg column="suggested_sets" javaType="_int"/>
+            <arg column="target" javaType="java.lang.String"/>
+            <arg column="cue" javaType="java.lang.String"/>
+            <arg column="safety_tip" javaType="java.lang.String"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="video_url" javaType="java.lang.String"/>
+            <arg column="video_cover_image" javaType="java.lang.String"/>
+            <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="planDataMap" type="com.qinglian.fitness.mapper.AdminMapper$PlanData">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="week_number" javaType="_int"/>
+            <arg column="sessions_per_week" javaType="_int"/>
+            <arg column="description" javaType="java.lang.String"/>
+            <arg column="active" javaType="_boolean"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="planItemRowMap" type="com.qinglian.fitness.admin.AdminDtos$PlanItemRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="course_id" javaType="_long"/>
+            <arg column="course_title" javaType="java.lang.String"/>
+            <arg column="day_offset" javaType="_int"/>
+            <arg column="sort_order" javaType="_int"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="campaignRowMap" type="com.qinglian.fitness.admin.AdminDtos$CampaignRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="code" javaType="java.lang.String"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="rules_text" javaType="java.lang.String"/>
+            <arg column="start_date" javaType="java.time.LocalDate"/>
+            <arg column="end_date" javaType="java.time.LocalDate"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="checkin_count" javaType="_long"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="workoutRowMap" type="com.qinglian.fitness.admin.AdminDtos$WorkoutRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="user_name" javaType="java.lang.String"/>
+            <arg column="course_id" javaType="_long"/>
+            <arg column="course_title" javaType="java.lang.String"/>
+            <arg column="duration_minutes" javaType="_int"/>
+            <arg column="completion_percent" javaType="_int"/>
+            <arg column="started_at" javaType="java.time.Instant"/>
+            <arg column="completed_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="feedbackRowMap" type="com.qinglian.fitness.admin.AdminDtos$FeedbackRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="user_name" javaType="java.lang.String"/>
+            <arg column="category" javaType="java.lang.String"/>
+            <arg column="content" javaType="java.lang.String"/>
+            <arg column="contact" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="auditRowMap" type="com.qinglian.fitness.admin.AdminDtos$AuditRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="username" javaType="java.lang.String"/>
+            <arg column="action" javaType="java.lang.String"/>
+            <arg column="target_type" javaType="java.lang.String"/>
+            <arg column="target_id" javaType="java.lang.Long"/>
+            <arg column="summary" javaType="java.lang.String"/>
+            <arg column="ip_address" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="deviceRowMap" type="com.qinglian.fitness.admin.AdminDtos$DeviceRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="code" javaType="java.lang.String"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="category" javaType="java.lang.String"/>
+            <arg column="serial_number" javaType="java.lang.String"/>
+            <arg column="device_model" javaType="java.lang.String"/>
+            <arg column="bed_type" javaType="java.lang.String"/>
+            <arg column="spring_config" javaType="java.lang.String"/>
+            <arg column="purchased_on" javaType="java.time.LocalDate"/>
+            <arg column="connected" javaType="_boolean"/>
+            <arg column="active" javaType="_boolean"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="bound_user_count" javaType="_long"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="deviceCategoryRowMap" type="com.qinglian.fitness.admin.AdminDtos$DeviceCategoryRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="name" javaType="java.lang.String"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="device_count" javaType="_long"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+            <arg column="updated_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <select id="countUsers" resultType="long">select count(*) from users</select>
+
+    <select id="countUsersSince" resultType="long">
+        select count(*) from users where created_at &gt;= #{since}
+    </select>
+
+    <select id="countWorkoutsSince" resultType="long">
+        select count(*) from workout_records where completed_at &gt;= #{since}
+    </select>
+
+    <select id="countCourses" resultType="long">select count(*) from courses</select>
+
+    <select id="countPendingFeedback" resultType="long">
+        select count(*) from user_feedback where status in ('SUBMITTED', 'PROCESSING')
+    </select>
+
+    <select id="findWorkoutTrend" resultMap="trendPointMap">
+        select date(completed_at) workout_date, count(*) workout_count
+        from workout_records
+        where completed_at &gt;= #{since}
+        group by date(completed_at)
+        order by workout_date
+    </select>
+
+    <select id="findRecentContent" resultMap="recentContentMap">
+        select id, title, kind, status, updated_at
+        from (
+            select id, title, 'COURSE' kind, status, updated_at from courses
+            union all
+            select id, name title, 'EXERCISE' kind, status, updated_at from exercises
+        ) content
+        order by updated_at desc
+        limit #{limit}
+    </select>
+
+    <select id="countUsersFiltered" resultType="long">
+        select count(*) from users u
+        <where>
+            <if test="query != null">
+                lower(coalesce(u.nickname, '')) like concat('%', lower(#{query}), '%')
+                or coalesce(u.phone, '') like concat('%', #{query}, '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="findUsers" resultMap="userRowMap">
+        select u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at,
+               count(w.id) workout_count, coalesce(sum(w.duration_minutes), 0) total_minutes
+        from users u
+        left join workout_records w on w.user_id = u.id
+        <where>
+            <if test="query != null">
+                lower(coalesce(u.nickname, '')) like concat('%', lower(#{query}), '%')
+                or coalesce(u.phone, '') like concat('%', #{query}, '%')
+            </if>
+        </where>
+        group by u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at
+        order by u.created_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countCoursesFiltered" resultType="long">
+        select count(*) from courses
+        <where>
+            <if test="query != null">lower(title) like concat('%', lower(#{query}), '%')</if>
+            <if test="status != null">and status = #{status}</if>
+        </where>
+    </select>
+
+    <select id="findCourses" resultMap="courseDataMap">
+        select * from courses
+        <where>
+            <if test="query != null">lower(title) like concat('%', lower(#{query}), '%')</if>
+            <if test="status != null">and status = #{status}</if>
+        </where>
+        order by sort_order, updated_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findCourse" resultMap="courseDataMap">
+        select * from courses where id = #{id}
+    </select>
+
+    <select id="findCourseExerciseIds" resultType="long">
+        select exercise_id from course_exercises where course_id = #{courseId} order by sort_order
+    </select>
+
+    <insert id="insertCourse" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into courses(title, type, duration_minutes, level, equipment, summary, cover_image,
+            video_url, video_cover_image, video_duration_seconds, status, sort_order)
+        values (trim(#{request.title}), trim(#{request.type}), #{request.durationMinutes}, trim(#{request.level}),
+            trim(#{request.equipment}), trim(#{request.summary}), nullif(trim(#{request.coverImage}), ''),
+            nullif(trim(#{request.videoUrl}), ''), nullif(trim(#{request.videoCoverImage}), ''),
+            #{request.videoDurationSeconds}, #{request.status}, #{request.sortOrder})
+    </insert>
+
+    <update id="updateCourse">
+        update courses
+        set title = trim(#{request.title}), type = trim(#{request.type}),
+            duration_minutes = #{request.durationMinutes}, level = trim(#{request.level}),
+            equipment = trim(#{request.equipment}), summary = trim(#{request.summary}),
+            cover_image = nullif(trim(#{request.coverImage}), ''),
+            video_url = nullif(trim(#{request.videoUrl}), ''),
+            video_cover_image = nullif(trim(#{request.videoCoverImage}), ''),
+            video_duration_seconds = #{request.videoDurationSeconds}, status = #{request.status},
+            sort_order = #{request.sortOrder}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCourse">delete from courses where id = #{id}</delete>
+    <delete id="deleteCourseExercises">delete from course_exercises where course_id = #{courseId}</delete>
+
+    <insert id="insertCourseExercise">
+        insert into course_exercises(course_id, exercise_id, sort_order)
+        values (#{courseId}, #{exerciseId}, #{sortOrder})
+    </insert>
+
+    <select id="countExercisesFiltered" resultType="long">
+        select count(*) from exercises
+        <where>
+            <if test="query != null">lower(name) like concat('%', lower(#{query}), '%')</if>
+            <if test="status != null">and status = #{status}</if>
+        </where>
+    </select>
+
+    <select id="findExercises" resultMap="exerciseRowMap">
+        select * from exercises
+        <where>
+            <if test="query != null">lower(name) like concat('%', lower(#{query}), '%')</if>
+            <if test="status != null">and status = #{status}</if>
+        </where>
+        order by sort_order, updated_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findExercise" resultMap="exerciseRowMap">
+        select * from exercises where id = #{id}
+    </select>
+
+    <insert id="insertExercise" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into exercises(name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
+            cover_image, video_url, video_cover_image, video_duration_seconds, status, sort_order)
+        values (trim(#{request.name}), trim(#{request.bodyPart}), trim(#{request.level}),
+            trim(#{request.equipment}), #{request.suggestedSets}, trim(#{request.target}),
+            trim(#{request.cue}), trim(#{request.safetyTip}), nullif(trim(#{request.coverImage}), ''),
+            nullif(trim(#{request.videoUrl}), ''), nullif(trim(#{request.videoCoverImage}), ''),
+            #{request.videoDurationSeconds}, #{request.status}, #{request.sortOrder})
+    </insert>
+
+    <update id="updateExercise">
+        update exercises
+        set name = trim(#{request.name}), body_part = trim(#{request.bodyPart}),
+            level = trim(#{request.level}), equipment = trim(#{request.equipment}),
+            suggested_sets = #{request.suggestedSets}, target = trim(#{request.target}),
+            cue = trim(#{request.cue}), safety_tip = trim(#{request.safetyTip}),
+            cover_image = nullif(trim(#{request.coverImage}), ''),
+            video_url = nullif(trim(#{request.videoUrl}), ''),
+            video_cover_image = nullif(trim(#{request.videoCoverImage}), ''),
+            video_duration_seconds = #{request.videoDurationSeconds}, status = #{request.status},
+            sort_order = #{request.sortOrder}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteExercise">delete from exercises where id = #{id}</delete>
+
+    <select id="countPlansFiltered" resultType="long">
+        select count(*) from training_plans
+        <where><if test="query != null">lower(title) like concat('%', lower(#{query}), '%')</if></where>
+    </select>
+
+    <select id="findPlans" resultMap="planDataMap">
+        select * from training_plans
+        <where><if test="query != null">lower(title) like concat('%', lower(#{query}), '%')</if></where>
+        order by sort_order, updated_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findPlan" resultMap="planDataMap">
+        select * from training_plans where id = #{id}
+    </select>
+
+    <select id="findPlanItems" resultMap="planItemRowMap">
+        select i.id, i.course_id, c.title course_title, i.day_offset, i.sort_order
+        from training_plan_items i
+        join courses c on c.id = i.course_id
+        where i.plan_id = #{planId}
+        order by i.day_offset, i.sort_order
+    </select>
+
+    <insert id="insertPlan" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into training_plans(title, week_number, sessions_per_week, description, active, sort_order)
+        values (trim(#{request.title}), #{request.weekNumber}, #{request.sessionsPerWeek},
+            nullif(trim(#{request.description}), ''), #{request.active}, #{request.sortOrder})
+    </insert>
+
+    <update id="updatePlan">
+        update training_plans
+        set title = trim(#{request.title}), week_number = #{request.weekNumber},
+            sessions_per_week = #{request.sessionsPerWeek},
+            description = nullif(trim(#{request.description}), ''), active = #{request.active},
+            sort_order = #{request.sortOrder}
+        where id = #{id}
+    </update>
+
+    <delete id="deletePlan">delete from training_plans where id = #{id}</delete>
+    <delete id="deletePlanItems">delete from training_plan_items where plan_id = #{planId}</delete>
+
+    <insert id="insertPlanItem">
+        insert into training_plan_items(plan_id, course_id, day_offset, sort_order)
+        values (#{planId}, #{item.courseId}, #{item.dayOffset}, #{item.sortOrder})
+    </insert>
+
+    <select id="countCampaignsFiltered" resultType="long">
+        select count(*) from campaigns c
+        <where>
+            <if test="query != null">
+                lower(c.title) like concat('%', lower(#{query}), '%')
+                or lower(c.code) like concat('%', lower(#{query}), '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="findCampaigns" resultMap="campaignRowMap">
+        select c.*, count(cc.id) checkin_count
+        from campaigns c
+        left join campaign_checkins cc on cc.campaign_code = c.code
+        <where>
+            <if test="query != null">
+                lower(c.title) like concat('%', lower(#{query}), '%')
+                or lower(c.code) like concat('%', lower(#{query}), '%')
+            </if>
+        </where>
+        group by c.id, c.code, c.title, c.rules_text, c.start_date, c.end_date, c.status,
+                 c.sort_order, c.created_at, c.updated_at
+        order by c.sort_order, c.updated_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findCampaign" resultMap="campaignRowMap">
+        select c.*, count(cc.id) checkin_count
+        from campaigns c
+        left join campaign_checkins cc on cc.campaign_code = c.code
+        where c.id = #{id}
+        group by c.id, c.code, c.title, c.rules_text, c.start_date, c.end_date, c.status,
+                 c.sort_order, c.created_at, c.updated_at
+    </select>
+
+    <insert id="insertCampaign" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into campaigns(code, title, rules_text, start_date, end_date, status, sort_order)
+        values (upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
+            trim(#{request.title}), trim(#{request.rulesText}), #{request.startDate}, #{request.endDate},
+            #{request.status}, #{request.sortOrder})
+    </insert>
+
+    <update id="updateCampaign">
+        update campaigns
+        set code = upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
+            title = trim(#{request.title}), rules_text = trim(#{request.rulesText}),
+            start_date = #{request.startDate}, end_date = #{request.endDate}, status = #{request.status},
+            sort_order = #{request.sortOrder}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCampaign">delete from campaigns where id = #{id}</delete>
+
+    <select id="countWorkoutsFiltered" resultType="long">
+        select count(*)
+        from workout_records w
+        join users u on u.id = w.user_id
+        join courses c on c.id = w.course_id
+        <where>
+            <if test="query != null">
+                lower(coalesce(u.nickname, '')) like concat('%', lower(#{query}), '%')
+                or lower(c.title) like concat('%', lower(#{query}), '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="findWorkouts" resultMap="workoutRowMap">
+        select w.id, w.user_id, coalesce(u.nickname, concat('用户 ', u.id)) user_name,
+               w.course_id, c.title course_title, w.duration_minutes, w.completion_percent,
+               w.started_at, w.completed_at
+        from workout_records w
+        join users u on u.id = w.user_id
+        join courses c on c.id = w.course_id
+        <where>
+            <if test="query != null">
+                lower(coalesce(u.nickname, '')) like concat('%', lower(#{query}), '%')
+                or lower(c.title) like concat('%', lower(#{query}), '%')
+            </if>
+        </where>
+        order by w.completed_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countFeedbackFiltered" resultType="long">
+        select count(*) from user_feedback
+        <where><if test="status != null">status = #{status}</if></where>
+    </select>
+
+    <select id="findFeedback" resultMap="feedbackRowMap">
+        select f.id, f.user_id, coalesce(u.nickname, concat('用户 ', u.id)) user_name,
+               f.category, f.content, f.contact, f.status, f.created_at
+        from user_feedback f
+        join users u on u.id = f.user_id
+        <where><if test="status != null">f.status = #{status}</if></where>
+        order by f.created_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findFeedbackById" resultMap="feedbackRowMap">
+        select f.id, f.user_id, coalesce(u.nickname, concat('用户 ', u.id)) user_name,
+               f.category, f.content, f.contact, f.status, f.created_at
+        from user_feedback f
+        join users u on u.id = f.user_id
+        where f.id = #{id}
+    </select>
+
+    <update id="updateFeedbackStatus">
+        update user_feedback set status = #{status} where id = #{id}
+    </update>
+
+    <select id="findDeviceCategories" resultMap="deviceCategoryRowMap">
+        select c.*, count(d.id) device_count
+        from device_categories c
+        left join devices d on d.category = c.name
+        group by c.id, c.name, c.sort_order, c.created_at, c.updated_at
+        order by c.sort_order, c.id
+    </select>
+
+    <select id="findDeviceCategory" resultMap="deviceCategoryRowMap">
+        select c.*, count(d.id) device_count
+        from device_categories c
+        left join devices d on d.category = c.name
+        where c.id = #{id}
+        group by c.id, c.name, c.sort_order, c.created_at, c.updated_at
+    </select>
+
+    <select id="findDeviceCategoryByName" resultMap="deviceCategoryRowMap">
+        select c.*, count(d.id) device_count
+        from device_categories c
+        left join devices d on d.category = c.name
+        where c.name = #{name}
+        group by c.id, c.name, c.sort_order, c.created_at, c.updated_at
+    </select>
+
+    <insert id="insertDeviceCategory" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into device_categories(name, sort_order)
+        values (trim(#{request.name}), #{request.sortOrder})
+    </insert>
+
+    <update id="updateDeviceCategory">
+        update device_categories
+        set name = trim(#{request.name}), sort_order = #{request.sortOrder}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteDeviceCategory">delete from device_categories where id = #{id}</delete>
+
+    <select id="countDevicesFiltered" resultType="long">
+        select count(*) from devices d
+        <where>
+            <if test="query != null">
+                lower(d.name) like concat('%', lower(#{query}), '%')
+                or lower(d.code) like concat('%', lower(#{query}), '%')
+                or lower(d.serial_number) like concat('%', lower(#{query}), '%')
+            </if>
+            <if test="category != null">and d.category = #{category}</if>
+        </where>
+    </select>
+
+    <select id="findDevices" resultMap="deviceRowMap">
+        select d.*, count(uds.user_id) bound_user_count
+        from devices d
+        left join user_device_selections uds on uds.device_id = d.id
+        <where>
+            <if test="query != null">
+                lower(d.name) like concat('%', lower(#{query}), '%')
+                or lower(d.code) like concat('%', lower(#{query}), '%')
+                or lower(d.serial_number) like concat('%', lower(#{query}), '%')
+            </if>
+            <if test="category != null">and d.category = #{category}</if>
+        </where>
+        group by d.id, d.code, d.name, d.category, d.serial_number, d.device_model, d.bed_type,
+                 d.spring_config, d.purchased_on, d.connected, d.active, d.sort_order,
+                 d.created_at, d.updated_at
+        order by d.sort_order, d.updated_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findDevice" resultMap="deviceRowMap">
+        select d.*, count(uds.user_id) bound_user_count
+        from devices d
+        left join user_device_selections uds on uds.device_id = d.id
+        where d.id = #{id}
+        group by d.id, d.code, d.name, d.category, d.serial_number, d.device_model, d.bed_type,
+                 d.spring_config, d.purchased_on, d.connected, d.active, d.sort_order,
+                 d.created_at, d.updated_at
+    </select>
+
+    <insert id="insertDevice" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into devices(code, name, category, serial_number, device_model, bed_type,
+            spring_config, purchased_on, connected, active, sort_order)
+        values (upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
+            trim(#{request.name}), trim(#{request.category}), upper(trim(#{request.serialNumber})),
+            trim(#{request.deviceModel}), trim(#{request.bedType}), trim(#{request.springConfig}),
+            #{request.purchasedOn}, #{request.connected}, #{request.active}, #{request.sortOrder})
+    </insert>
+
+    <update id="updateDevice">
+        update devices
+        set code = upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
+            name = trim(#{request.name}), category = trim(#{request.category}),
+            serial_number = upper(trim(#{request.serialNumber})),
+            device_model = trim(#{request.deviceModel}), bed_type = trim(#{request.bedType}),
+            spring_config = trim(#{request.springConfig}), purchased_on = #{request.purchasedOn},
+            connected = #{request.connected}, active = #{request.active}, sort_order = #{request.sortOrder}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteDevice">delete from devices where id = #{id}</delete>
+
+    <select id="countAudits" resultType="long">select count(*) from admin_audit_logs</select>
+
+    <select id="findAudits" resultMap="auditRowMap">
+        select l.id, a.username, l.action, l.target_type, l.target_id, l.summary, l.ip_address, l.created_at
+        from admin_audit_logs l
+        join admin_accounts a on a.id = l.admin_id
+        order by l.created_at desc
+        limit #{limit} offset #{offset}
+    </select>
+
+</mapper>

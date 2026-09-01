@@ -4,6 +4,22 @@
     "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.qinglian.fitness.mapper.CampaignMapper">
 
+    <resultMap id="campaignContentMap" type="com.qinglian.fitness.mapper.CampaignMapper$CampaignContentRow">
+        <constructor>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="rules_text" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findOpenCampaign" resultMap="campaignContentMap">
+        select title, rules_text
+        from campaigns
+        where code = #{code}
+          and status = 'PUBLISHED'
+          and (start_date is null or start_date &lt;= #{date})
+          and (end_date is null or end_date &gt;= #{date})
+    </select>
+
     <insert id="createCheckin">
         insert into campaign_checkins(user_id, campaign_code, checkin_date)
         values (#{userId}, #{code}, #{date})

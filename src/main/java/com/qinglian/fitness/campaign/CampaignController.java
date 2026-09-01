@@ -36,7 +36,7 @@ public class CampaignController {
 
     private String normalize(String code) {
         String normalized = code == null ? "" : code.trim().toUpperCase(Locale.ROOT).replace('-', '_');
-        if (!"AUGUST_ABS".equals(normalized)) {
+        if (!normalized.matches("[A-Z0-9_]{2,40}")) {
             throw new ApiException(HttpStatus.NOT_FOUND, "CAMPAIGN_NOT_FOUND", "训练营不存在");
         }
         return normalized;

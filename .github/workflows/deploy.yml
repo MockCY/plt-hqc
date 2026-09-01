@@ -15,13 +15,13 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t plt-hgc:latest .
+          docker build -t arvello-backend:latest .
 
       - name: Save Docker image
         run: |
-          docker save plt-hgc:latest -o plt-hgc.tar
-          chmod 644 plt-hgc.tar
-          ls -lh plt-hgc.tar
+          docker save arvello-backend:latest -o arvello-backend.tar
+          chmod 644 arvello-backend.tar
+          ls -lh arvello-backend.tar
 
       - name: Prepare server directory
         uses: appleboy/ssh-action@v1
@@ -31,6 +31,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             mkdir -p /home/admin/deploy
+            mkdir -p /home/admin/deploy/data/media
 
       - name: Upload Docker image
         uses: appleboy/scp-action@v0.1.7
@@ -38,8 +39,18 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "plt-hgc.tar"
+          source: "arvello-backend.tar"
           target: "/home/admin/deploy"
+
+      - name: Upload Docker Compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/docker-compose.yml"
+          target: "/home/admin/deploy"
+          strip_components: 1
 
       - name: Deploy to Alibaba Cloud
         uses: appleboy/ssh-action@v1
@@ -52,16 +63,25 @@ jobs:
 
             cd /home/admin/deploy
 
-            docker load -i plt-hgc.tar
+            test -f .env || { echo "Missing /home/admin/deploy/.env"; exit 1; }
+            test -f docker-compose.yml || { echo "Missing docker-compose.yml"; exit 1; }
+
+            docker load -i arvello-backend.tar
 
             docker rm -f plt-hgc 2>/dev/null || true
+            docker compose --env-file .env up -d --no-build --remove-orphans
 
-            docker run -d \
-              --name plt-hgc \
-              --restart unless-stopped \
-              -p 127.0.0.1:8080:8080 \
-              plt-hgc:latest
-
-            rm -f plt-hgc.tar
+            rm -f arvello-backend.tar
 
             docker image prune -f
+
+            for attempt in 1 2 3 4 5 6; do
+              if curl --fail --silent http://127.0.0.1:8080/api/health >/dev/null; then
+                docker compose ps
+                exit 0
+              fi
+              sleep 5
+            done
+
+            docker compose logs --tail=200 arvello-backend
+            exit 1

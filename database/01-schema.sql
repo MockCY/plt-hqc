@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS courses (
     equipment VARCHAR(80) NOT NULL,
     summary VARCHAR(300) NOT NULL,
     cover_image VARCHAR(500) NULL,
+    video_url VARCHAR(500) NULL,
+    video_cover_image VARCHAR(500) NULL,
+    video_duration_seconds INT NULL,
+    view_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -59,6 +63,10 @@ CREATE TABLE IF NOT EXISTS exercises (
     target VARCHAR(40) NOT NULL,
     cue VARCHAR(500) NOT NULL,
     safety_tip VARCHAR(500) NOT NULL,
+    cover_image VARCHAR(500) NULL,
+    video_url VARCHAR(500) NULL,
+    video_cover_image VARCHAR(500) NULL,
+    video_duration_seconds INT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -77,6 +85,18 @@ CREATE TABLE IF NOT EXISTS course_exercises (
     PRIMARY KEY (course_id, exercise_id),
     CONSTRAINT fk_course_exercises_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     CONSTRAINT fk_course_exercises_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS course_views (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    course_id BIGINT UNSIGNED NOT NULL,
+    visitor_key VARCHAR(80) NOT NULL,
+    viewed_on DATE NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_course_views_daily (course_id, visitor_key, viewed_on),
+    KEY idx_course_views_date (viewed_on),
+    CONSTRAINT fk_course_views_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS training_plans (
@@ -185,6 +205,51 @@ CREATE TABLE IF NOT EXISTS user_plan_selections (
     KEY idx_user_plan_selections_plan (plan_id),
     CONSTRAINT fk_user_plan_selections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_plan_selections_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS device_categories (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(30) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_device_categories_name (name),
+    KEY idx_device_categories_sort (sort_order, id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS devices (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code VARCHAR(40) NOT NULL,
+    name VARCHAR(80) NOT NULL,
+    category VARCHAR(30) NOT NULL DEFAULT '核心床',
+    serial_number VARCHAR(64) NOT NULL,
+    device_model VARCHAR(100) NOT NULL,
+    bed_type VARCHAR(80) NOT NULL,
+    spring_config VARCHAR(200) NOT NULL,
+    purchased_on DATE NULL,
+    connected BOOLEAN NOT NULL DEFAULT FALSE,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_devices_code (code),
+    UNIQUE KEY uk_devices_serial_number (serial_number),
+    KEY idx_devices_category_active (category, active),
+    KEY idx_devices_active_sort (active, sort_order),
+    CONSTRAINT fk_devices_category FOREIGN KEY (category) REFERENCES device_categories(name)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_device_selections (
+    user_id BIGINT UNSIGNED NOT NULL,
+    device_id BIGINT UNSIGNED NOT NULL,
+    selected_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (user_id),
+    UNIQUE KEY uk_user_device_device (device_id),
+    CONSTRAINT fk_user_device_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_device_device FOREIGN KEY (device_id) REFERENCES devices(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS user_feedback (

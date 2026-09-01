@@ -49,7 +49,7 @@
     </select>
 
     <select id="findById" resultMap="workoutResultMap">
-        select wr.id, wr.course_id, cast(null as bigint) custom_course_id, c.title course_title,
+        select wr.id, wr.course_id, null custom_course_id, c.title course_title,
                wr.duration_minutes, wr.completion_percent, wr.started_at, wr.completed_at
         from workout_records wr
         join courses c on c.id = wr.course_id
@@ -57,7 +57,7 @@
     </select>
 
     <select id="findCustomById" resultMap="workoutResultMap">
-        select cwr.id, cast(null as bigint) course_id, cwr.custom_course_id, cc.title course_title,
+        select cwr.id, null course_id, cwr.custom_course_id, cc.title course_title,
                cwr.duration_minutes, cwr.completion_percent, cwr.started_at, cwr.completed_at
         from custom_workout_records cwr
         join custom_courses cc on cc.id = cwr.custom_course_id
@@ -66,13 +66,13 @@
 
     <select id="findRecent" resultMap="workoutResultMap">
         select * from (
-            select wr.id, wr.course_id, cast(null as bigint) custom_course_id, c.title course_title,
+            select wr.id, wr.course_id, null custom_course_id, c.title course_title,
                    wr.duration_minutes, wr.completion_percent, wr.started_at, wr.completed_at
             from workout_records wr
             join courses c on c.id = wr.course_id
             where wr.user_id = #{userId}
             union all
-            select cwr.id, cast(null as bigint) course_id, cwr.custom_course_id, cc.title course_title,
+            select cwr.id, null course_id, cwr.custom_course_id, cc.title course_title,
                    cwr.duration_minutes, cwr.completion_percent, cwr.started_at, cwr.completed_at
             from custom_workout_records cwr
             join custom_courses cc on cc.id = cwr.custom_course_id

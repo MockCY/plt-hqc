@@ -19,6 +19,10 @@ public interface CatalogMapper {
 
     List<CourseExerciseView> findCourseExercises(@Param("courseId") long courseId);
 
+    int recordCourseView(@Param("courseId") long courseId, @Param("visitorKey") String visitorKey);
+
+    int incrementCourseViewCount(@Param("courseId") long courseId);
+
     record CourseDetailRow(
         long id,
         String title,
@@ -27,7 +31,11 @@ public interface CatalogMapper {
         String level,
         String equipment,
         String summary,
-        String coverImage
+        String coverImage,
+        String videoUrl,
+        String videoCoverImage,
+        Integer videoDurationSeconds,
+        long viewCount
     ) {
     }
 }

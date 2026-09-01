@@ -41,7 +41,18 @@ database/01-schema.sql
 database/02-seed.sql
 database/03-create-app-user.sql.example
 database/04-features.sql
+database/05-media-storage.sql
+database/06-devices.sql
+database/07-course-detail.sql
+database/08-admin-console.sql
 ```
+
+上面的顺序用于新数据库，不要再执行一次性升级脚本 `10` 和 `11`。
+已执行过 `10-device-category.sql` 的数据库还需执行一次
+`database/11-device-categories.sql`，将固定分类迁移为后台可维护的分类数据。
+
+已经执行过 `06-devices.sql` 的旧数据库，只需额外执行一次
+`database/09-device-account-binding.sql`。升级脚本会为设备补充编号和档案字段，并把设备绑定改为一台设备只属于一个账号；如果历史数据中存在重复绑定，唯一约束会拒绝生效并保留原数据，请先用脚本内的审计语句确认设备归属。
 
 第三个文件先替换其中的随机密码。如果 Java 和 MySQL 在同一台服务器，应用账号限制为 `localhost`，并在云安全组中关闭公网 `3306`。
 
@@ -57,13 +68,23 @@ $env:DB_USERNAME='root'
 $env:DB_PASSWORD='你的应用数据库密码'
 $env:WECHAT_APP_ID='你的小程序AppID'
 $env:WECHAT_APP_SECRET='你的小程序AppSecret'
+$env:ADMIN_USERNAME='admin'
+$env:ADMIN_PASSWORD='请使用足够长的随机密码'
 .\mvnw.cmd spring-boot:run
 ```
 
-测试与打包：
+测试使用独立的 MySQL 数据库，不再使用 H2。测试启动时会重建测试表，禁止把测试连接指向正式业务库：
 
 ```powershell
+$env:TEST_DB_URL='jdbc:mysql://127.0.0.1:3306/hqc_plt_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true'
+$env:TEST_DB_USERNAME='root'
+$env:TEST_DB_PASSWORD='测试数据库密码'
 .\mvnw.cmd test
+```
+
+打包与启动：
+
+```powershell
 .\mvnw.cmd package
 java -jar target\ARVELLO.jar
 ```
@@ -94,6 +115,9 @@ Authorization: Bearer <token>
 | GET | `/api/plans/catalog` | 否 | 可选训练计划列表 |
 | GET | `/api/plans/current` | 是 | 当前训练计划 |
 | PUT | `/api/plans/{id}/select` | 是 | 选择并保存当前计划 |
+| GET | `/api/devices/current` | 是 | 查询当前账号绑定的设备档案 |
+| POST | `/api/devices/bind` | 是 | 使用设备编号绑定到当前账号 |
+| DELETE | `/api/devices/current` | 是 | 解除当前账号的设备绑定 |
 | POST | `/api/workout-records` | 是 | 写入训练记录 |
 | GET | `/api/workout-records` | 是 | 训练记录列表 |
 | GET | `/api/workout-records/stats` | 是 | 训练统计 |
@@ -108,7 +132,16 @@ Authorization: Bearer <token>
 
 完整请求样例见 [examples/api.http](examples/api.http)。
 
-## 7. 上线前检查
+## 7. 管理后台
+
+管理接口统一位于 `/api/admin/**`，使用独立管理员会话，不接受小程序用户令牌。首次启动前设置
+`ADMIN_USERNAME` 和 `ADMIN_PASSWORD`，应用会在尚无管理员账号时创建首个账号。创建完成后，密码仅以
+BCrypt 摘要保存在数据库中。
+
+后台支持数据概览、用户查询、课程与动作维护、训练计划与训练营维护、训练记录查询、反馈处理、
+媒体上传和操作日志。生产环境不要保留空的 `ADMIN_PASSWORD`。
+
+## 8. 上线前检查
 
 - 在微信公众平台配置 `request` 合法域名和用户隐私保护指引。
 - 服务通过 Nginx/Caddy 暴露 HTTPS，只开放 `443`，Java 的 `8080` 仅供反向代理访问。
