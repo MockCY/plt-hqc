@@ -1,6 +1,5 @@
 package com.qinglian.fitness.device;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -29,16 +28,16 @@ public final class DeviceDtos {
     }
 
     public record BindRequest(
-        @NotBlank(message = "请输入设备编号")
-        @Size(max = 64, message = "设备编号不能超过64个字符")
-        String serialNumber
+        @Size(max = 64, message = "设备编号不能超过64个字符") String serialNumber,
+        @Size(max = 64, message = "二维码令牌不能超过64个字符") String qrToken
     ) {
     }
 
     public enum BindStatus {
         BOUND,
         NOT_FOUND,
-        ALREADY_BOUND
+        ALREADY_BOUND,
+        INVALID
     }
 
     public record BindResult(BindStatus status, BoundDevice device) {

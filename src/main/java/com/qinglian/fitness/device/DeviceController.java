@@ -42,11 +42,12 @@ public class DeviceController {
     @PostMapping("/bind")
     @ResponseStatus(HttpStatus.CREATED)
     public BoundDevice bind(HttpServletRequest request, @Valid @RequestBody BindRequest body) {
-        BindResult result = repository.bind(CurrentUser.id(request), body.serialNumber());
+        BindResult result = repository.bind(CurrentUser.id(request), body.serialNumber(), body.qrToken());
         return switch (result.status()) {
             case BOUND -> result.device();
             case NOT_FOUND -> throw new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_FOUND", "没有找到该设备，请检查设备编号");
             case ALREADY_BOUND -> throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_BOUND", "该设备已绑定其他账号");
+            case INVALID -> throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BINDING_INVALID", "请输入设备编号或扫描设备二维码");
         };
     }
 

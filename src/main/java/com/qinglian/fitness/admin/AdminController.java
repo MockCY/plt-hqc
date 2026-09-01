@@ -5,7 +5,10 @@ import com.qinglian.fitness.media.MediaStorageService;
 import com.qinglian.fitness.media.MediaStorageService.StoredMedia;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,11 +28,14 @@ public class AdminController {
     private final AdminAuthService authService;
     private final AdminRepository repository;
     private final MediaStorageService mediaStorage;
+    private final DeviceQrCodeService deviceQrCodeService;
 
-    public AdminController(AdminAuthService authService, AdminRepository repository, MediaStorageService mediaStorage) {
+    public AdminController(AdminAuthService authService, AdminRepository repository, MediaStorageService mediaStorage,
+                           DeviceQrCodeService deviceQrCodeService) {
         this.authService = authService;
         this.repository = repository;
         this.mediaStorage = mediaStorage;
+        this.deviceQrCodeService = deviceQrCodeService;
     }
 
     @PostMapping("/auth/login")
@@ -301,14 +307,14 @@ public class AdminController {
 
     @PostMapping("/devices")
     @ResponseStatus(HttpStatus.CREATED)
-    public DeviceRow createDevice(@Valid @RequestBody DeviceRequest body, HttpServletRequest request) {
+    public DeviceRow createDevice(@Valid @RequestBody DeviceCreateRequest body, HttpServletRequest request) {
         DeviceRow created = repository.createDevice(body);
         audit(request, "CREATE", "DEVICE", created.id(), "新增设备：" + created.name());
         return created;
     }
 
     @PutMapping("/devices/{id}")
-    public DeviceRow updateDevice(@PathVariable long id, @Valid @RequestBody DeviceRequest body, HttpServletRequest request) {
+    public DeviceRow updateDevice(@PathVariable long id, @Valid @RequestBody DeviceUpdateRequest body, HttpServletRequest request) {
         DeviceRow updated = repository.updateDevice(id, body);
         audit(request, "UPDATE", "DEVICE", id, "更新设备：" + updated.name());
         return updated;
@@ -320,6 +326,15 @@ public class AdminController {
         String name = repository.device(id).name();
         repository.deleteDevice(id);
         audit(request, "DELETE", "DEVICE", id, "删除设备：" + name);
+    }
+
+    @GetMapping(value = "/devices/{id}/qr-code", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> deviceQrCode(@PathVariable long id) {
+        byte[] png = deviceQrCodeService.generate(repository.deviceQrPayload(id));
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"device-" + id + "-qr.png\"")
+            .contentType(MediaType.IMAGE_PNG)
+            .body(png);
     }
 
     @PostMapping("/media/upload")

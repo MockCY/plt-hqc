@@ -158,9 +158,11 @@ public interface AdminMapper {
 
     DeviceRow findDevice(@Param("id") long id);
 
-    int insertDevice(InsertCommand<DeviceRequest> command);
+    int insertDevice(InsertCommand<GeneratedDevice> command);
 
-    int updateDevice(@Param("id") long id, @Param("request") DeviceRequest request);
+    int updateDevice(@Param("id") long id, @Param("request") DeviceUpdateRequest request);
+
+    String findDeviceQrToken(@Param("id") long id);
 
     int deleteDevice(@Param("id") long id);
 

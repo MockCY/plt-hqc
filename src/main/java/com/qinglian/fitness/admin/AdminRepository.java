@@ -13,11 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 @Repository
 public class AdminRepository {
@@ -297,18 +299,40 @@ public class AdminRepository {
         return row;
     }
 
-    public DeviceRow createDevice(DeviceRequest request) {
-        validateDeviceCategory(request.category());
-        InsertCommand<DeviceRequest> command = new InsertCommand<>(request);
-        mapper.insertDevice(command);
-        return device(generatedId(command));
+    public DeviceRow createDevice(DeviceCreateRequest request) {
+        DeviceCategoryRow category = requireDeviceCategory(request.category());
+        for (int attempt = 0; attempt < 5; attempt++) {
+            GeneratedDevice generated = new GeneratedDevice(
+                request.code(), request.name(), category.name(), generateSerialNumber(category.snPrefix()),
+                randomToken(), category.deviceModel(), request.bedType(), request.springConfig(), request.purchasedOn(),
+                request.connected(), request.active(), request.sortOrder()
+            );
+            InsertCommand<GeneratedDevice> command = new InsertCommand<>(generated);
+            try {
+                mapper.insertDevice(command);
+                return device(generatedId(command));
+            } catch (DataIntegrityViolationException exception) {
+                if (attempt == 4) {
+                    throw new ApiException(HttpStatus.CONFLICT, "DEVICE_EXISTS", "设备代码已存在，请更换后重试");
+                }
+            }
+        }
+        throw new IllegalStateException("无法生成唯一设备编号");
     }
 
-    public DeviceRow updateDevice(long id, DeviceRequest request) {
-        validateDeviceCategory(request.category());
+    public DeviceRow updateDevice(long id, DeviceUpdateRequest request) {
         device(id);
-        mapper.updateDevice(id, request);
+        try {
+            mapper.updateDevice(id, request);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_EXISTS", "设备代码已存在，请更换后重试");
+        }
         return device(id);
+    }
+
+    public String deviceQrPayload(long id) {
+        device(id);
+        return "ARVELLO:BIND:" + mapper.findDeviceQrToken(id);
     }
 
     public void deleteDevice(long id) {
@@ -387,10 +411,22 @@ public class AdminRepository {
         return value == null || value.isBlank() || "ALL".equalsIgnoreCase(value) ? null : value.trim();
     }
 
-    private void validateDeviceCategory(String category) {
-        if (category == null || mapper.findDeviceCategoryByName(category.trim()) == null) {
+    private DeviceCategoryRow requireDeviceCategory(String category) {
+        DeviceCategoryRow row = category == null ? null : mapper.findDeviceCategoryByName(category.trim());
+        if (row == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_CATEGORY_INVALID", "设备分类不正确");
         }
+        return row;
+    }
+
+    private String generateSerialNumber(String prefix) {
+        String date = LocalDate.now(ZoneId.of("Asia/Shanghai")).toString().replace("-", "");
+        return prefix.toUpperCase(Locale.ROOT) + "-" + date + "-"
+            + randomToken().substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
+    private String randomToken() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     private ApiException notFound(String code, String message) {

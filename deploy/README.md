@@ -1,5 +1,35 @@
 # ARVELLO Docker 部署
 
+## GitHub Actions 自动部署
+
+仓库的 `Deploy Backend` 工作流需要以下 GitHub Actions Secrets：
+
+- `SERVER_HOST`：服务器地址
+- `SERVER_USER`：SSH 用户名（当前部署目录按 `admin` 用户配置）
+- `SERVER_SSH_KEY`：SSH 私钥
+- `DEPLOY_ENV`：完整的生产环境变量文件内容
+
+在仓库的 `Settings > Secrets and variables > Actions` 中创建 `DEPLOY_ENV`，内容可从
+`deploy/.env.example` 复制，并将所有占位值替换为真实生产配置。例如：
+
+```properties
+DB_URL=jdbc:mysql://host.docker.internal:3306/hqc_plt?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+DB_USERNAME=root
+DB_PASSWORD=请替换为真实数据库密码
+WECHAT_APP_ID=请替换为真实小程序AppID
+WECHAT_APP_SECRET=请替换为真实小程序AppSecret
+SESSION_TTL=30d
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=请替换为真实后台密码
+ADMIN_SESSION_TTL=12h
+MEDIA_HOST_PATH=./data/media
+MEDIA_MAX_FILE_SIZE=500MB
+MEDIA_MAX_REQUEST_SIZE=500MB
+```
+
+工作流会临时生成 `.env` 并上传到 `/home/admin/deploy/.env`，不会将密钥提交到仓库。
+后端工作流只启动 `arvello-backend` 服务，不依赖服务器上存在管理后台镜像。
+
 ## 准备
 
 服务器需要安装 Docker Engine 和 Docker Compose 插件。将整个 `server` 目录上传到服务器，例如 `/opt/arvello/server`。

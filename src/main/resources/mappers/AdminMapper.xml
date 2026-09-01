@@ -182,6 +182,8 @@
         <constructor>
             <idArg column="id" javaType="_long"/>
             <arg column="name" javaType="java.lang.String"/>
+            <arg column="device_model" javaType="java.lang.String"/>
+            <arg column="sn_prefix" javaType="java.lang.String"/>
             <arg column="sort_order" javaType="_int"/>
             <arg column="device_count" javaType="_long"/>
             <arg column="created_at" javaType="java.time.Instant"/>
@@ -515,7 +517,7 @@
         select c.*, count(d.id) device_count
         from device_categories c
         left join devices d on d.category = c.name
-        group by c.id, c.name, c.sort_order, c.created_at, c.updated_at
+        group by c.id, c.name, c.device_model, c.sn_prefix, c.sort_order, c.created_at, c.updated_at
         order by c.sort_order, c.id
     </select>
 
@@ -524,7 +526,7 @@
         from device_categories c
         left join devices d on d.category = c.name
         where c.id = #{id}
-        group by c.id, c.name, c.sort_order, c.created_at, c.updated_at
+        group by c.id, c.name, c.device_model, c.sn_prefix, c.sort_order, c.created_at, c.updated_at
     </select>
 
     <select id="findDeviceCategoryByName" resultMap="deviceCategoryRowMap">
@@ -532,17 +534,18 @@
         from device_categories c
         left join devices d on d.category = c.name
         where c.name = #{name}
-        group by c.id, c.name, c.sort_order, c.created_at, c.updated_at
+        group by c.id, c.name, c.device_model, c.sn_prefix, c.sort_order, c.created_at, c.updated_at
     </select>
 
     <insert id="insertDeviceCategory" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into device_categories(name, sort_order)
-        values (trim(#{request.name}), #{request.sortOrder})
+        insert into device_categories(name, device_model, sn_prefix, sort_order)
+        values (trim(#{request.name}), trim(#{request.deviceModel}), upper(trim(#{request.snPrefix})), #{request.sortOrder})
     </insert>
 
     <update id="updateDeviceCategory">
         update device_categories
-        set name = trim(#{request.name}), sort_order = #{request.sortOrder}
+        set name = trim(#{request.name}), device_model = trim(#{request.deviceModel}),
+            sn_prefix = upper(trim(#{request.snPrefix})), sort_order = #{request.sortOrder}
         where id = #{id}
     </update>
 
@@ -590,24 +593,26 @@
     </select>
 
     <insert id="insertDevice" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into devices(code, name, category, serial_number, device_model, bed_type,
+        insert into devices(code, name, category, serial_number, qr_token, device_model, bed_type,
             spring_config, purchased_on, connected, active, sort_order)
         values (upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
             trim(#{request.name}), trim(#{request.category}), upper(trim(#{request.serialNumber})),
-            trim(#{request.deviceModel}), trim(#{request.bedType}), trim(#{request.springConfig}),
+            #{request.qrToken}, trim(#{request.deviceModel}), trim(#{request.bedType}), trim(#{request.springConfig}),
             #{request.purchasedOn}, #{request.connected}, #{request.active}, #{request.sortOrder})
     </insert>
 
     <update id="updateDevice">
         update devices
         set code = upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
-            name = trim(#{request.name}), category = trim(#{request.category}),
-            serial_number = upper(trim(#{request.serialNumber})),
-            device_model = trim(#{request.deviceModel}), bed_type = trim(#{request.bedType}),
+            name = trim(#{request.name}), bed_type = trim(#{request.bedType}),
             spring_config = trim(#{request.springConfig}), purchased_on = #{request.purchasedOn},
             connected = #{request.connected}, active = #{request.active}, sort_order = #{request.sortOrder}
         where id = #{id}
     </update>
+
+    <select id="findDeviceQrToken" resultType="string">
+        select qr_token from devices where id = #{id}
+    </select>
 
     <delete id="deleteDevice">delete from devices where id = #{id}</delete>
 

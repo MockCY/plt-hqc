@@ -23,6 +23,28 @@ jobs:
           chmod 644 arvello-backend.tar
           ls -lh arvello-backend.tar
 
+      - name: Create deployment environment file
+        shell: bash
+        env:
+          DEPLOY_ENV: ${{ secrets.DEPLOY_ENV }}
+        run: |
+          set -eu
+
+          if [ -z "$DEPLOY_ENV" ]; then
+            echo "::error::Repository secret DEPLOY_ENV is not configured"
+            exit 1
+          fi
+
+          printf '%s\n' "$DEPLOY_ENV" > deploy/.env
+          chmod 600 deploy/.env
+
+          for name in DB_URL DB_USERNAME DB_PASSWORD WECHAT_APP_ID WECHAT_APP_SECRET ADMIN_USERNAME ADMIN_PASSWORD; do
+            if ! grep -Eq "^${name}=.+" deploy/.env; then
+              echo "::error::DEPLOY_ENV is missing a non-empty ${name}"
+              exit 1
+            fi
+          done
+
       - name: Prepare server directory
         uses: appleboy/ssh-action@v1
         with:
@@ -42,13 +64,13 @@ jobs:
           source: "arvello-backend.tar"
           target: "/home/admin/deploy"
 
-      - name: Upload Docker Compose file
+      - name: Upload deployment files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy/docker-compose.yml"
+          source: "deploy/docker-compose.yml,deploy/.env"
           target: "/home/admin/deploy"
           strip_components: 1
 
@@ -65,11 +87,12 @@ jobs:
 
             test -f .env || { echo "Missing /home/admin/deploy/.env"; exit 1; }
             test -f docker-compose.yml || { echo "Missing docker-compose.yml"; exit 1; }
+            chmod 600 .env
 
             docker load -i arvello-backend.tar
 
             docker rm -f plt-hgc 2>/dev/null || true
-            docker compose --env-file .env up -d --no-build --remove-orphans
+            docker compose --env-file .env up -d --no-build --remove-orphans arvello-backend
 
             rm -f arvello-backend.tar
 

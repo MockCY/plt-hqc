@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -153,13 +154,16 @@ public final class AdminDtos {
     }
 
     public record DeviceCategoryRow(
-        long id, String name, int sortOrder, long deviceCount,
+        long id, String name, String deviceModel, String snPrefix, int sortOrder, long deviceCount,
         Instant createdAt, Instant updatedAt
     ) {
     }
 
     public record DeviceCategoryRequest(
         @NotBlank @Size(max = 30) String name,
+        @NotBlank @Size(max = 100) String deviceModel,
+        @NotBlank @Size(min = 2, max = 12)
+        @Pattern(regexp = "[A-Za-z0-9]+", message = "SN 前缀只能包含字母和数字") String snPrefix,
         int sortOrder
     ) {
     }
@@ -172,18 +176,35 @@ public final class AdminDtos {
     ) {
     }
 
-    public record DeviceRequest(
+    public record DeviceCreateRequest(
         @NotBlank @Size(max = 40) String code,
         @NotBlank @Size(max = 80) String name,
         @NotBlank @Size(max = 30) String category,
-        @NotBlank @Size(max = 64) String serialNumber,
-        @NotBlank @Size(max = 100) String deviceModel,
         @NotBlank @Size(max = 80) String bedType,
         @NotBlank @Size(max = 200) String springConfig,
         LocalDate purchasedOn,
         boolean connected,
         boolean active,
         int sortOrder
+    ) {
+    }
+
+    public record DeviceUpdateRequest(
+        @NotBlank @Size(max = 40) String code,
+        @NotBlank @Size(max = 80) String name,
+        @NotBlank @Size(max = 80) String bedType,
+        @NotBlank @Size(max = 200) String springConfig,
+        LocalDate purchasedOn,
+        boolean connected,
+        boolean active,
+        int sortOrder
+    ) {
+    }
+
+    public record GeneratedDevice(
+        String code, String name, String category, String serialNumber, String qrToken,
+        String deviceModel, String bedType, String springConfig, LocalDate purchasedOn,
+        boolean connected, boolean active, int sortOrder
     ) {
     }
 
