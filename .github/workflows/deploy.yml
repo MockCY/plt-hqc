@@ -36,7 +36,9 @@ jobs:
           fi
 
           printf '%s\n' "$DEPLOY_ENV" > deploy/.env
-          chmod 600 deploy/.env
+          # scp-action runs in a container and must be able to read this file.
+          # The remote deployment step restores owner-only permissions.
+          chmod 644 deploy/.env
 
           for name in DB_URL DB_USERNAME DB_PASSWORD WECHAT_APP_ID WECHAT_APP_SECRET ADMIN_USERNAME ADMIN_PASSWORD; do
             if ! grep -Eq "^${name}=.+" deploy/.env; then
