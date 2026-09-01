@@ -9,7 +9,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -18,10 +17,6 @@ public class DeviceRepository {
 
     public DeviceRepository(DeviceMapper mapper) {
         this.mapper = mapper;
-    }
-
-    public List<DeviceView> findActive() {
-        return mapper.findActive();
     }
 
     public Optional<BoundDevice> current(long userId) {

@@ -243,54 +243,54 @@ public class AdminRepository {
             paging.page(), paging.pageSize());
     }
 
-    public List<DeviceCategoryRow> deviceCategories() {
-        return mapper.findDeviceCategories();
+    public List<DeviceModelRow> deviceModels() {
+        return mapper.findDeviceModels();
     }
 
-    public DeviceCategoryRow deviceCategory(long id) {
-        DeviceCategoryRow row = mapper.findDeviceCategory(id);
-        if (row == null) throw notFound("DEVICE_CATEGORY_NOT_FOUND", "设备分类不存在");
+    public DeviceModelRow deviceModel(long id) {
+        DeviceModelRow row = mapper.findDeviceModel(id);
+        if (row == null) throw notFound("DEVICE_MODEL_NOT_FOUND", "设备型号不存在");
         return row;
     }
 
-    public DeviceCategoryRow createDeviceCategory(DeviceCategoryRequest request) {
-        InsertCommand<DeviceCategoryRequest> command = new InsertCommand<>(request);
+    public DeviceModelRow createDeviceModel(DeviceModelRequest request) {
+        InsertCommand<DeviceModelRequest> command = new InsertCommand<>(request);
         try {
-            mapper.insertDeviceCategory(command);
+            mapper.insertDeviceModel(command);
         } catch (DataIntegrityViolationException exception) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_CATEGORY_EXISTS", "设备分类名称已存在");
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_MODEL_EXISTS", "设备型号或 SN 前缀已存在");
         }
-        return deviceCategory(generatedId(command));
+        return deviceModel(generatedId(command));
     }
 
-    public DeviceCategoryRow updateDeviceCategory(long id, DeviceCategoryRequest request) {
-        deviceCategory(id);
+    public DeviceModelRow updateDeviceModel(long id, DeviceModelRequest request) {
+        deviceModel(id);
         try {
-            mapper.updateDeviceCategory(id, request);
+            mapper.updateDeviceModel(id, request);
         } catch (DataIntegrityViolationException exception) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_CATEGORY_EXISTS", "设备分类名称已存在");
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_MODEL_EXISTS", "设备型号或 SN 前缀已存在");
         }
-        return deviceCategory(id);
+        return deviceModel(id);
     }
 
-    public void deleteDeviceCategory(long id) {
-        DeviceCategoryRow row = deviceCategory(id);
+    public void deleteDeviceModel(long id) {
+        DeviceModelRow row = deviceModel(id);
         if (row.deviceCount() > 0) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_CATEGORY_IN_USE", "该分类下还有设备，无法删除");
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_MODEL_IN_USE", "该型号下还有设备，无法删除");
         }
         try {
-            mapper.deleteDeviceCategory(id);
+            mapper.deleteDeviceModel(id);
         } catch (DataIntegrityViolationException exception) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_CATEGORY_IN_USE", "该分类下还有设备，无法删除");
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_MODEL_IN_USE", "该型号下还有设备，无法删除");
         }
     }
 
-    public PageResult<DeviceRow> devices(String query, String category, int page, int pageSize) {
+    public PageResult<DeviceRow> devices(String query, String deviceModel, int page, int pageSize) {
         Paging paging = paging(page, pageSize);
         String normalizedQuery = normalizeQuery(query);
-        String normalizedCategory = normalizeCategory(category);
-        return new PageResult<>(mapper.findDevices(normalizedQuery, normalizedCategory, paging.pageSize(), paging.offset()),
-            mapper.countDevicesFiltered(normalizedQuery, normalizedCategory), paging.page(), paging.pageSize());
+        String normalizedModel = normalizeDeviceModel(deviceModel);
+        return new PageResult<>(mapper.findDevices(normalizedQuery, normalizedModel, paging.pageSize(), paging.offset()),
+            mapper.countDevicesFiltered(normalizedQuery, normalizedModel), paging.page(), paging.pageSize());
     }
 
     public DeviceRow device(long id) {
@@ -300,34 +300,21 @@ public class AdminRepository {
     }
 
     public DeviceRow createDevice(DeviceCreateRequest request) {
-        DeviceCategoryRow category = requireDeviceCategory(request.category());
+        DeviceModelRow model = requireDeviceModel(request.deviceModel());
         for (int attempt = 0; attempt < 5; attempt++) {
-            GeneratedDevice generated = new GeneratedDevice(
-                request.code(), request.name(), category.name(), generateSerialNumber(category.snPrefix()),
-                randomToken(), category.deviceModel(), request.bedType(), request.springConfig(), request.purchasedOn(),
-                request.connected(), request.active(), request.sortOrder()
-            );
+            String serialNumber = generateSerialNumber(model.snPrefix());
+            GeneratedDevice generated = new GeneratedDevice(serialNumber, randomToken(), model.name());
             InsertCommand<GeneratedDevice> command = new InsertCommand<>(generated);
             try {
                 mapper.insertDevice(command);
                 return device(generatedId(command));
             } catch (DataIntegrityViolationException exception) {
                 if (attempt == 4) {
-                    throw new ApiException(HttpStatus.CONFLICT, "DEVICE_EXISTS", "设备代码已存在，请更换后重试");
+                    throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ID_GENERATION_FAILED", "无法生成唯一设备标识，请重试");
                 }
             }
         }
         throw new IllegalStateException("无法生成唯一设备编号");
-    }
-
-    public DeviceRow updateDevice(long id, DeviceUpdateRequest request) {
-        device(id);
-        try {
-            mapper.updateDevice(id, request);
-        } catch (DataIntegrityViolationException exception) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_EXISTS", "设备代码已存在，请更换后重试");
-        }
-        return device(id);
     }
 
     public String deviceQrPayload(long id) {
@@ -337,13 +324,13 @@ public class AdminRepository {
 
     public void deleteDevice(long id) {
         DeviceRow item = device(id);
-        if (item.boundUserCount() > 0) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_IN_USE", "该设备已被用户绑定，请停用而不是删除");
+        if (item.bound()) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_IN_USE", "该设备已被用户绑定，无法删除");
         }
         try {
             mapper.deleteDevice(id);
         } catch (DataIntegrityViolationException exception) {
-            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_IN_USE", "该设备已被用户绑定，请停用而不是删除");
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_IN_USE", "该设备已被用户绑定，无法删除");
         }
     }
 
@@ -407,14 +394,14 @@ public class AdminRepository {
             ? null : value.trim().toUpperCase(Locale.ROOT);
     }
 
-    private String normalizeCategory(String value) {
+    private String normalizeDeviceModel(String value) {
         return value == null || value.isBlank() || "ALL".equalsIgnoreCase(value) ? null : value.trim();
     }
 
-    private DeviceCategoryRow requireDeviceCategory(String category) {
-        DeviceCategoryRow row = category == null ? null : mapper.findDeviceCategoryByName(category.trim());
+    private DeviceModelRow requireDeviceModel(String deviceModel) {
+        DeviceModelRow row = deviceModel == null ? null : mapper.findDeviceModelByName(deviceModel.trim());
         if (row == null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_CATEGORY_INVALID", "设备分类不正确");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_INVALID", "设备型号不正确");
         }
         return row;
     }

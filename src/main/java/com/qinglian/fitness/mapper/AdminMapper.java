@@ -135,23 +135,23 @@ public interface AdminMapper {
 
     int updateFeedbackStatus(@Param("id") long id, @Param("status") String status);
 
-    List<DeviceCategoryRow> findDeviceCategories();
+    List<DeviceModelRow> findDeviceModels();
 
-    DeviceCategoryRow findDeviceCategory(@Param("id") long id);
+    DeviceModelRow findDeviceModel(@Param("id") long id);
 
-    DeviceCategoryRow findDeviceCategoryByName(@Param("name") String name);
+    DeviceModelRow findDeviceModelByName(@Param("name") String name);
 
-    int insertDeviceCategory(InsertCommand<DeviceCategoryRequest> command);
+    int insertDeviceModel(InsertCommand<DeviceModelRequest> command);
 
-    int updateDeviceCategory(@Param("id") long id, @Param("request") DeviceCategoryRequest request);
+    int updateDeviceModel(@Param("id") long id, @Param("request") DeviceModelRequest request);
 
-    int deleteDeviceCategory(@Param("id") long id);
+    int deleteDeviceModel(@Param("id") long id);
 
-    long countDevicesFiltered(@Param("query") String query, @Param("category") String category);
+    long countDevicesFiltered(@Param("query") String query, @Param("deviceModel") String deviceModel);
 
     List<DeviceRow> findDevices(
         @Param("query") String query,
-        @Param("category") String category,
+        @Param("deviceModel") String deviceModel,
         @Param("limit") int limit,
         @Param("offset") int offset
     );
@@ -159,8 +159,6 @@ public interface AdminMapper {
     DeviceRow findDevice(@Param("id") long id);
 
     int insertDevice(InsertCommand<GeneratedDevice> command);
-
-    int updateDevice(@Param("id") long id, @Param("request") DeviceUpdateRequest request);
 
     String findDeviceQrToken(@Param("id") long id);
 

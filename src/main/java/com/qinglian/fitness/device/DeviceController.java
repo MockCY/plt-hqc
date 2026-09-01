@@ -5,7 +5,6 @@ import com.qinglian.fitness.common.ApiException;
 import com.qinglian.fitness.device.DeviceDtos.BindRequest;
 import com.qinglian.fitness.device.DeviceDtos.BindResult;
 import com.qinglian.fitness.device.DeviceDtos.BoundDevice;
-import com.qinglian.fitness.device.DeviceDtos.DeviceView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/devices")
 public class DeviceController {
@@ -26,11 +23,6 @@ public class DeviceController {
 
     public DeviceController(DeviceRepository repository) {
         this.repository = repository;
-    }
-
-    @GetMapping
-    public List<DeviceView> devices() {
-        return repository.findActive();
     }
 
     @GetMapping("/current")

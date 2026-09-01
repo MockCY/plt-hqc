@@ -2,27 +2,19 @@ package com.qinglian.fitness.device;
 
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public final class DeviceDtos {
     private DeviceDtos() {
     }
 
-    public record DeviceView(long id, String code, String name, String category, boolean connected) {
+    public record DeviceView(long id, String deviceModel) {
     }
 
     public record BoundDevice(
         long id,
-        String code,
-        String name,
-        String category,
-        boolean connected,
         String deviceModel,
-        String bedType,
-        String springConfig,
         String serialNumber,
-        LocalDate purchasedOn,
         LocalDateTime boundAt
     ) {
     }

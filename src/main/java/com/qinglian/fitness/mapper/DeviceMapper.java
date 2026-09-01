@@ -9,9 +9,7 @@ import java.util.List;
 
 @Mapper
 public interface DeviceMapper {
-    List<DeviceView> findActive();
     BoundDevice findCurrent(@Param("userId") long userId);
-    DeviceView findById(@Param("id") long id);
     DeviceView findBySerialNumber(@Param("serialNumber") String serialNumber);
     DeviceView findByQrToken(@Param("qrToken") String qrToken);
     Long findBindingUserId(@Param("deviceId") long deviceId);

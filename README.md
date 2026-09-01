@@ -47,12 +47,14 @@ database/07-course-detail.sql
 database/08-admin-console.sql
 ```
 
-上面的顺序用于新数据库，不要再执行一次性升级脚本 `10` 和 `11`。
-已执行过 `10-device-category.sql` 的数据库还需执行一次
-`database/11-device-categories.sql`，将固定分类迁移为后台可维护的分类数据。
+上面的顺序用于新数据库，设备表会直接使用精简后的型号、SN 和二维码结构，不要执行一次性升级脚本 `09` 至 `13`。
 
-已经执行过 `06-devices.sql` 的旧数据库，只需额外执行一次
-`database/09-device-account-binding.sql`。升级脚本会为设备补充编号和档案字段，并把设备绑定改为一台设备只属于一个账号；如果历史数据中存在重复绑定，唯一约束会拒绝生效并保留原数据，请先用脚本内的审计语句确认设备归属。
+已经执行过 `12-device-qr-and-sn.sql` 的数据库需额外执行一次
+`database/13-device-models-and-cleanup.sql`。该脚本把分类转换为型号，保留设备 ID、SN、二维码和账号绑定，
+并删除设备名称、分类、连接状态、床型、弹簧、购买时间、启用状态和排序等废弃字段。
+
+版本早于 `12-device-qr-and-sn.sql` 的旧数据库，应按编号依次执行尚未运行的 `09` 至 `13` 升级脚本。
+执行 `09` 前先用脚本内的审计语句确认历史设备没有重复绑定。
 
 第三个文件先替换其中的随机密码。如果 Java 和 MySQL 在同一台服务器，应用账号限制为 `localhost`，并在云安全组中关闭公网 `3306`。
 
@@ -116,7 +118,7 @@ Authorization: Bearer <token>
 | GET | `/api/plans/current` | 是 | 当前训练计划 |
 | PUT | `/api/plans/{id}/select` | 是 | 选择并保存当前计划 |
 | GET | `/api/devices/current` | 是 | 查询当前账号绑定的设备档案 |
-| POST | `/api/devices/bind` | 是 | 使用设备编号绑定到当前账号 |
+| POST | `/api/devices/bind` | 是 | 使用设备编号或二维码令牌绑定到当前账号 |
 | DELETE | `/api/devices/current` | 是 | 解除当前账号的设备绑定 |
 | POST | `/api/workout-records` | 是 | 写入训练记录 |
 | GET | `/api/workout-records` | 是 | 训练记录列表 |

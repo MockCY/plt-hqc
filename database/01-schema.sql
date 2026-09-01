@@ -207,38 +207,29 @@ CREATE TABLE IF NOT EXISTS user_plan_selections (
     CONSTRAINT fk_user_plan_selections_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS device_categories (
+CREATE TABLE IF NOT EXISTS device_models (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name VARCHAR(30) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
+    name VARCHAR(100) NOT NULL,
+    sn_prefix VARCHAR(12) NOT NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
-    UNIQUE KEY uk_device_categories_name (name),
-    KEY idx_device_categories_sort (sort_order, id)
+    UNIQUE KEY uk_device_models_name (name),
+    UNIQUE KEY uk_device_models_sn_prefix (sn_prefix)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS devices (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    code VARCHAR(40) NOT NULL,
-    name VARCHAR(80) NOT NULL,
-    category VARCHAR(30) NOT NULL DEFAULT '核心床',
     serial_number VARCHAR(64) NOT NULL,
+    qr_token VARCHAR(64) NOT NULL,
     device_model VARCHAR(100) NOT NULL,
-    bed_type VARCHAR(80) NOT NULL,
-    spring_config VARCHAR(200) NOT NULL,
-    purchased_on DATE NULL,
-    connected BOOLEAN NOT NULL DEFAULT FALSE,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
-    UNIQUE KEY uk_devices_code (code),
     UNIQUE KEY uk_devices_serial_number (serial_number),
-    KEY idx_devices_category_active (category, active),
-    KEY idx_devices_active_sort (active, sort_order),
-    CONSTRAINT fk_devices_category FOREIGN KEY (category) REFERENCES device_categories(name)
+    UNIQUE KEY uk_devices_qr_token (qr_token),
+    KEY idx_devices_device_model (device_model),
+    CONSTRAINT fk_devices_device_model FOREIGN KEY (device_model) REFERENCES device_models(name)
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 

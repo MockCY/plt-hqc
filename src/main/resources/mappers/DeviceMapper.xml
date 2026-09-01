@@ -4,56 +4,37 @@
     <resultMap id="deviceResultMap" type="com.qinglian.fitness.device.DeviceDtos$DeviceView">
         <constructor>
             <idArg column="id" javaType="_long"/>
-            <arg column="code" javaType="java.lang.String"/>
-            <arg column="name" javaType="java.lang.String"/>
-            <arg column="category" javaType="java.lang.String"/>
-            <arg column="connected" javaType="_boolean"/>
+            <arg column="device_model" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
     <resultMap id="boundDeviceResultMap" type="com.qinglian.fitness.device.DeviceDtos$BoundDevice">
         <constructor>
             <idArg column="id" javaType="_long"/>
-            <arg column="code" javaType="java.lang.String"/>
-            <arg column="name" javaType="java.lang.String"/>
-            <arg column="category" javaType="java.lang.String"/>
-            <arg column="connected" javaType="_boolean"/>
             <arg column="device_model" javaType="java.lang.String"/>
-            <arg column="bed_type" javaType="java.lang.String"/>
-            <arg column="spring_config" javaType="java.lang.String"/>
             <arg column="serial_number" javaType="java.lang.String"/>
-            <arg column="purchased_on" javaType="java.time.LocalDate"/>
             <arg column="bound_at" javaType="java.time.LocalDateTime"/>
         </constructor>
     </resultMap>
 
-    <sql id="deviceColumns">id, code, name, category, connected</sql>
-
-    <select id="findActive" resultMap="deviceResultMap">
-        select <include refid="deviceColumns"/> from devices where active = true order by sort_order, id
-    </select>
+    <sql id="deviceColumns">id, device_model</sql>
 
     <select id="findCurrent" resultMap="boundDeviceResultMap">
-        select d.id, d.code, d.name, d.category, d.connected, d.device_model, d.bed_type,
-               d.spring_config, d.serial_number, d.purchased_on, uds.selected_at as bound_at
+        select d.id, d.device_model, d.serial_number, uds.selected_at as bound_at
         from user_device_selections uds join devices d on d.id = uds.device_id
-        where uds.user_id = #{userId} and d.active = true
-    </select>
-
-    <select id="findById" resultMap="deviceResultMap">
-        select <include refid="deviceColumns"/> from devices where id = #{id} and active = true
+        where uds.user_id = #{userId}
     </select>
 
     <select id="findBySerialNumber" resultMap="deviceResultMap">
         select <include refid="deviceColumns"/>
         from devices
-        where upper(serial_number) = upper(#{serialNumber}) and active = true
+        where upper(serial_number) = upper(#{serialNumber})
     </select>
 
     <select id="findByQrToken" resultMap="deviceResultMap">
         select <include refid="deviceColumns"/>
         from devices
-        where qr_token = #{qrToken} and active = true
+        where qr_token = #{qrToken}
     </select>
 
     <select id="findBindingUserId" resultType="java.lang.Long">

@@ -258,46 +258,46 @@ public class AdminController {
     @GetMapping("/devices")
     public PageResult<DeviceRow> devices(
         @RequestParam(required = false) String query,
-        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String deviceModel,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int pageSize
     ) {
-        return repository.devices(query, category, page, pageSize);
+        return repository.devices(query, deviceModel, page, pageSize);
     }
 
-    @GetMapping("/device-categories")
-    public java.util.List<DeviceCategoryRow> deviceCategories() {
-        return repository.deviceCategories();
+    @GetMapping("/device-models")
+    public java.util.List<DeviceModelRow> deviceModels() {
+        return repository.deviceModels();
     }
 
-    @PostMapping("/device-categories")
+    @PostMapping("/device-models")
     @ResponseStatus(HttpStatus.CREATED)
-    public DeviceCategoryRow createDeviceCategory(
-        @Valid @RequestBody DeviceCategoryRequest body,
+    public DeviceModelRow createDeviceModel(
+        @Valid @RequestBody DeviceModelRequest body,
         HttpServletRequest request
     ) {
-        DeviceCategoryRow created = repository.createDeviceCategory(body);
-        audit(request, "CREATE", "DEVICE_CATEGORY", created.id(), "新增设备分类：" + created.name());
+        DeviceModelRow created = repository.createDeviceModel(body);
+        audit(request, "CREATE", "DEVICE_MODEL", created.id(), "新增设备型号：" + created.name());
         return created;
     }
 
-    @PutMapping("/device-categories/{id}")
-    public DeviceCategoryRow updateDeviceCategory(
+    @PutMapping("/device-models/{id}")
+    public DeviceModelRow updateDeviceModel(
         @PathVariable long id,
-        @Valid @RequestBody DeviceCategoryRequest body,
+        @Valid @RequestBody DeviceModelRequest body,
         HttpServletRequest request
     ) {
-        DeviceCategoryRow updated = repository.updateDeviceCategory(id, body);
-        audit(request, "UPDATE", "DEVICE_CATEGORY", id, "更新设备分类：" + updated.name());
+        DeviceModelRow updated = repository.updateDeviceModel(id, body);
+        audit(request, "UPDATE", "DEVICE_MODEL", id, "更新设备型号：" + updated.name());
         return updated;
     }
 
-    @DeleteMapping("/device-categories/{id}")
+    @DeleteMapping("/device-models/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteDeviceCategory(@PathVariable long id, HttpServletRequest request) {
-        String name = repository.deviceCategory(id).name();
-        repository.deleteDeviceCategory(id);
-        audit(request, "DELETE", "DEVICE_CATEGORY", id, "删除设备分类：" + name);
+    public void deleteDeviceModel(@PathVariable long id, HttpServletRequest request) {
+        String name = repository.deviceModel(id).name();
+        repository.deleteDeviceModel(id);
+        audit(request, "DELETE", "DEVICE_MODEL", id, "删除设备型号：" + name);
     }
 
     @GetMapping("/devices/{id}")
@@ -309,23 +309,16 @@ public class AdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public DeviceRow createDevice(@Valid @RequestBody DeviceCreateRequest body, HttpServletRequest request) {
         DeviceRow created = repository.createDevice(body);
-        audit(request, "CREATE", "DEVICE", created.id(), "新增设备：" + created.name());
+        audit(request, "CREATE", "DEVICE", created.id(), "新增设备：" + created.serialNumber());
         return created;
-    }
-
-    @PutMapping("/devices/{id}")
-    public DeviceRow updateDevice(@PathVariable long id, @Valid @RequestBody DeviceUpdateRequest body, HttpServletRequest request) {
-        DeviceRow updated = repository.updateDevice(id, body);
-        audit(request, "UPDATE", "DEVICE", id, "更新设备：" + updated.name());
-        return updated;
     }
 
     @DeleteMapping("/devices/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteDevice(@PathVariable long id, HttpServletRequest request) {
-        String name = repository.device(id).name();
+        String serialNumber = repository.device(id).serialNumber();
         repository.deleteDevice(id);
-        audit(request, "DELETE", "DEVICE", id, "删除设备：" + name);
+        audit(request, "DELETE", "DEVICE", id, "删除设备：" + serialNumber);
     }
 
     @GetMapping(value = "/devices/{id}/qr-code", produces = MediaType.IMAGE_PNG_VALUE)
