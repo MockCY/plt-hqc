@@ -321,11 +321,12 @@ public class AdminController {
         audit(request, "DELETE", "DEVICE", id, "删除设备：" + serialNumber);
     }
 
-    @GetMapping(value = "/devices/{id}/qr-code", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> deviceQrCode(@PathVariable long id) {
-        byte[] png = deviceQrCodeService.generate(repository.deviceQrPayload(id));
+    @GetMapping(value = {"/devices/{id}/label", "/devices/{id}/qr-code"}, produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> deviceLabel(@PathVariable long id) {
+        DeviceRow device = repository.device(id);
+        byte[] png = deviceQrCodeService.generateDeviceLabel(device);
         return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"device-" + id + "-qr.png\"")
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + device.serialNumber() + "-label.png\"")
             .contentType(MediaType.IMAGE_PNG)
             .body(png);
     }

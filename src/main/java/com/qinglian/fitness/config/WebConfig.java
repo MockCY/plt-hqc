@@ -39,13 +39,15 @@ public class WebConfig implements WebMvcConfigurer {
                 "/api/health",
                 "/api/auth/login",
                 "/api/auth/wechat-phone",
+                "/api/media/files/**",
                 "/api/admin/**",
                 "/api/courses",
                 "/api/courses/**",
                 "/api/exercises",
                 "/api/exercises/**",
                 "/api/devices",
-                "/api/plans/catalog"
+                "/api/plans/catalog",
+                "/api/plans/detail/*"
             );
         registry.addInterceptor(adminLoginInterceptor)
             .addPathPatterns("/api/admin/**")

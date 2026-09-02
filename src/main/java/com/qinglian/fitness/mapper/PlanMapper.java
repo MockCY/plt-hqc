@@ -27,7 +27,11 @@ public interface PlanMapper {
 
     int createSelection(@Param("userId") long userId, @Param("planId") long planId);
 
-    record PlanHeader(long id, String title, int weekNumber, int sessionsPerWeek, String description) {
+    record PlanHeader(
+        long id, String title, int weekNumber, int sessionsPerWeek, String description,
+        String subtitle, String coverImage, String level, String trainingScene, Integer sessionMinutes,
+        String benefitOne, String benefitTwo, String benefitThree
+    ) {
     }
 
     record PlanItemRow(

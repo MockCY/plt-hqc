@@ -38,7 +38,10 @@ public final class AdminDtos {
         long weeklyWorkoutCount,
         long courseCount,
         long pendingFeedbackCount,
+        long todayOnlineCount,
+        long currentOnlineCount,
         List<TrendPoint> workoutTrend,
+        List<TrendPoint> onlineTrend,
         List<RecentContent> recentContent
     ) {
     }
@@ -105,6 +108,8 @@ public final class AdminDtos {
 
     public record PlanRow(
         long id, String title, int weekNumber, int sessionsPerWeek, String description,
+        String subtitle, String coverImage, String level, String trainingScene, Integer sessionMinutes,
+        String benefitOne, String benefitTwo, String benefitThree,
         boolean active, int sortOrder, List<PlanItemRow> items, Instant createdAt, Instant updatedAt
     ) {
     }
@@ -117,6 +122,14 @@ public final class AdminDtos {
         @Min(1) @Max(52) int weekNumber,
         @Min(1) @Max(14) int sessionsPerWeek,
         @Size(max = 300) String description,
+        @Size(max = 160) String subtitle,
+        @Size(max = 500) String coverImage,
+        @Size(max = 30) String level,
+        @Size(max = 30) String trainingScene,
+        @Min(1) @Max(600) Integer sessionMinutes,
+        @Size(max = 80) String benefitOne,
+        @Size(max = 80) String benefitTwo,
+        @Size(max = 80) String benefitThree,
         boolean active,
         int sortOrder,
         List<@Valid PlanItemRequest> items

@@ -24,15 +24,11 @@ public class DeviceRepository {
     }
 
     @Transactional
-    public BindResult bind(long userId, String serialNumber, String qrToken) {
-        DeviceView device;
-        if (qrToken != null && !qrToken.isBlank()) {
-            device = mapper.findByQrToken(qrToken.trim());
-        } else if (serialNumber != null && !serialNumber.isBlank()) {
-            device = mapper.findBySerialNumber(serialNumber.trim());
-        } else {
+    public BindResult bind(long userId, String serialNumber) {
+        if (serialNumber == null || serialNumber.isBlank()) {
             return new BindResult(BindStatus.INVALID, null);
         }
+        DeviceView device = mapper.findBySerialNumber(serialNumber.trim());
         if (device == null) return new BindResult(BindStatus.NOT_FOUND, null);
 
         Long bindingUserId = mapper.findBindingUserId(device.id());

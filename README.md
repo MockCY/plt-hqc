@@ -45,15 +45,19 @@ database/05-media-storage.sql
 database/06-devices.sql
 database/07-course-detail.sql
 database/08-admin-console.sql
+database/16-plan-presentation.sql
 ```
 
 上面的顺序用于新数据库，设备表会直接使用精简后的型号、SN 和二维码结构，不要执行一次性升级脚本 `09` 至 `13`。
 
 已经执行过 `12-device-qr-and-sn.sql` 的数据库需额外执行一次
 `database/13-device-models-and-cleanup.sql`。该脚本把分类转换为型号，保留设备 ID、SN、二维码和账号绑定，
-并删除设备名称、分类、连接状态、床型、弹簧、购买时间、启用状态和排序等废弃字段。
+并删除设备名称、分类、连接状态、床型、弹簧、购买时间、启用状态和排序等废弃字段。随后执行
+`database/14-sequential-device-sn.sql`，为每个型号增加受数据库行锁保护的 SN 流水号。所有已有数据库还需执行
+`database/15-online-presence.sql`，用于按天去重记录在线用户。
+计划页升级后还需执行 `database/16-plan-presentation.sql`，用于增加计划封面、展示标签、单次时长和完成收益字段。
 
-版本早于 `12-device-qr-and-sn.sql` 的旧数据库，应按编号依次执行尚未运行的 `09` 至 `13` 升级脚本。
+版本早于 `12-device-qr-and-sn.sql` 的旧数据库，应按编号依次执行尚未运行的 `09` 至 `15` 升级脚本。
 执行 `09` 前先用脚本内的审计语句确认历史设备没有重复绑定。
 
 第三个文件先替换其中的随机密码。如果 Java 和 MySQL 在同一台服务器，应用账号限制为 `localhost`，并在云安全组中关闭公网 `3306`。
@@ -70,6 +74,7 @@ $env:DB_USERNAME='root'
 $env:DB_PASSWORD='你的应用数据库密码'
 $env:WECHAT_APP_ID='你的小程序AppID'
 $env:WECHAT_APP_SECRET='你的小程序AppSecret'
+$env:WECHAT_MINI_PROGRAM_CODE_ENV_VERSION='release'
 $env:ADMIN_USERNAME='admin'
 $env:ADMIN_PASSWORD='请使用足够长的随机密码'
 .\mvnw.cmd spring-boot:run
@@ -111,14 +116,16 @@ Authorization: Bearer <token>
 | POST | `/api/auth/login` | 否 | 微信 `code` 登录 |
 | POST | `/api/auth/wechat-phone` | 否 | 微信登录并绑定快速验证手机号 |
 | POST | `/api/auth/logout` | 是 | 注销当前会话 |
+| WebSocket | `/ws/presence` | 是 | 小程序在线状态与心跳连接 |
+| GET | `/api/media/files/**` | 否 | 通过现有 `/api/` 代理读取媒体文件 |
 | GET | `/api/courses` | 否 | 课程列表，支持 `type`、`query` |
 | GET | `/api/courses/{id}` | 否 | 课程详情与训练动作步骤 |
 | GET | `/api/exercises` | 否 | 动作列表，支持 `bodyPart`、`query` |
 | GET | `/api/plans/catalog` | 否 | 可选训练计划列表 |
-| GET | `/api/plans/current` | 是 | 当前训练计划 |
+| GET | `/api/plans/current` | 是 | 当前训练计划；未选择时返回 `204` |
 | PUT | `/api/plans/{id}/select` | 是 | 选择并保存当前计划 |
-| GET | `/api/devices/current` | 是 | 查询当前账号绑定的设备档案 |
-| POST | `/api/devices/bind` | 是 | 使用设备编号或二维码令牌绑定到当前账号 |
+| GET | `/api/devices/current` | 是 | 查询当前账号绑定的设备档案；未绑定时返回 `204` |
+| POST | `/api/devices/bind` | 是 | 使用设备 SN 码绑定到当前账号 |
 | DELETE | `/api/devices/current` | 是 | 解除当前账号的设备绑定 |
 | POST | `/api/workout-records` | 是 | 写入训练记录 |
 | GET | `/api/workout-records` | 是 | 训练记录列表 |
@@ -143,9 +150,17 @@ BCrypt 摘要保存在数据库中。
 后台支持数据概览、用户查询、课程与动作维护、训练计划与训练营维护、训练记录查询、反馈处理、
 媒体上传和操作日志。生产环境不要保留空的 `ADMIN_PASSWORD`。
 
+设备标签统一使用微信官方接口 `getwxacodeunlimit` 生成的小程序码，参数固定为
+`scene=device-bind`、`page=pages/index/index`。用户微信扫码后，小程序读取 `scene` 并直接打开 SN 绑定页，
+因此不需要配置 Nginx `/device-bind` 路由，也不需要在微信公众平台配置“扫普通链接二维码打开小程序”。
+
+所有设备标签共用同一个小程序码，区别仅在标签下方的唯一 SN。服务进程会缓存小程序码，重启后的首次标签下载会重新调用微信接口。
+生产环境保持 `WECHAT_MINI_PROGRAM_CODE_ENV_VERSION=release`；体验版联调时可临时设为 `trial`，并确保目标页面已存在于对应版本中。
+
 ## 8. 上线前检查
 
-- 在微信公众平台配置 `request` 合法域名和用户隐私保护指引。
+- 在微信公众平台分别配置 `request` 与 `socket` 合法域名，并配置用户隐私保护指引。
+- 反向代理需要将 `/api/` 和 `/ws/` 转发到 Java 服务，其中 `/ws/` 必须传递 `Upgrade` 与 `Connection` 请求头；媒体不需要单独配置 `/media/`。
 - 服务通过 Nginx/Caddy 暴露 HTTPS，只开放 `443`，Java 的 `8080` 仅供反向代理访问。
 - AppSecret、数据库密码通过环境变量注入，定期轮换。
 - 不开放公网 `3306`；应用使用最小权限账号。

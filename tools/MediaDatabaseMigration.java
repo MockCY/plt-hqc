@@ -20,7 +20,7 @@ public final class MediaDatabaseMigration {
             addColumn(connection, "video_cover_image", "VARCHAR(500) NULL");
             addColumn(connection, "video_duration_seconds", "INT NULL");
             try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE courses SET cover_image = REPLACE(cover_image, '/static/fitness/', '/media/images/fitness/') WHERE cover_image LIKE '/static/fitness/%'")) {
+                "UPDATE courses SET cover_image = REPLACE(cover_image, '/static/fitness/', '/api/media/files/images/fitness/') WHERE cover_image LIKE '/static/fitness/%'")) {
                 System.out.println("updatedCoverRows=" + statement.executeUpdate());
             }
             try (Statement statement = connection.createStatement();

@@ -36,7 +36,25 @@ public class PlanRepository {
         )).toList();
         return Optional.of(new PlanView(
             header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(),
-            header.description(), items
+            header.description(), header.subtitle(), header.coverImage(), header.level(), header.trainingScene(),
+            header.sessionMinutes(), header.benefitOne(), header.benefitTwo(), header.benefitThree(), items
+        ));
+    }
+
+    public Optional<PlanView> detail(long planId) {
+        PlanMapper.PlanHeader header = planMapper.findPlanHeader(planId);
+        if (header == null) return Optional.empty();
+        LocalDate weekStart = LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1L);
+        List<PlanItemView> items = planMapper.findPlanItems(
+            0L, weekStart, weekStart.plusDays(7), header.id()
+        ).stream().map(item -> new PlanItemView(
+            item.id(), item.dayOffset(), weekStart.plusDays(item.dayOffset()), item.courseId(),
+            item.courseTitle(), item.durationMinutes(), "PENDING"
+        )).toList();
+        return Optional.of(new PlanView(
+            header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(), header.description(),
+            header.subtitle(), header.coverImage(), header.level(), header.trainingScene(), header.sessionMinutes(),
+            header.benefitOne(), header.benefitTwo(), header.benefitThree(), items
         ));
     }
 

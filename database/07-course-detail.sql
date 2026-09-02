@@ -41,6 +41,6 @@ UPDATE courses SET view_count = 14000 WHERE id = 1 AND view_count = 0;
 UPDATE courses SET view_count = 8600 WHERE id = 2 AND view_count = 0;
 UPDATE courses SET view_count = 5200 WHERE id = 3 AND view_count = 0;
 
-UPDATE exercises SET cover_image = '/media/images/fitness/course-fullbody.jpg' WHERE id = 1 AND cover_image IS NULL;
-UPDATE exercises SET cover_image = '/media/images/fitness/course-core.jpg' WHERE id = 2 AND cover_image IS NULL;
-UPDATE exercises SET cover_image = '/media/images/fitness/course-stretch.jpg' WHERE id = 3 AND cover_image IS NULL;
+UPDATE exercises SET cover_image = '/api/media/files/images/fitness/course-fullbody.jpg' WHERE id = 1 AND cover_image IS NULL;
+UPDATE exercises SET cover_image = '/api/media/files/images/fitness/course-core.jpg' WHERE id = 2 AND cover_image IS NULL;
+UPDATE exercises SET cover_image = '/api/media/files/images/fitness/course-stretch.jpg' WHERE id = 3 AND cover_image IS NULL;

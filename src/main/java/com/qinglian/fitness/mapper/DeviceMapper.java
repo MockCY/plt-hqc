@@ -11,7 +11,6 @@ import java.util.List;
 public interface DeviceMapper {
     BoundDevice findCurrent(@Param("userId") long userId);
     DeviceView findBySerialNumber(@Param("serialNumber") String serialNumber);
-    DeviceView findByQrToken(@Param("qrToken") String qrToken);
     Long findBindingUserId(@Param("deviceId") long deviceId);
     int updateSelection(@Param("userId") long userId, @Param("deviceId") long deviceId);
     int createSelection(@Param("userId") long userId, @Param("deviceId") long deviceId);

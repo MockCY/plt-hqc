@@ -21,7 +21,11 @@ public interface AdminMapper {
 
     long countPendingFeedback();
 
+    long countDailyOnline(@Param("date") LocalDate date);
+
     List<TrendPoint> findWorkoutTrend(@Param("since") Instant since);
+
+    List<TrendPoint> findOnlineTrend(@Param("since") LocalDate since);
 
     List<RecentContent> findRecentContent(@Param("limit") int limit);
 
@@ -158,9 +162,11 @@ public interface AdminMapper {
 
     DeviceRow findDevice(@Param("id") long id);
 
-    int insertDevice(InsertCommand<GeneratedDevice> command);
+    long lockDeviceSerialSequence(@Param("id") long id);
 
-    String findDeviceQrToken(@Param("id") long id);
+    int updateDeviceSerialSequence(@Param("id") long id, @Param("sequence") long sequence);
+
+    int insertDevice(InsertCommand<GeneratedDevice> command);
 
     int deleteDevice(@Param("id") long id);
 
@@ -178,6 +184,8 @@ public interface AdminMapper {
 
     record PlanData(
         long id, String title, int weekNumber, int sessionsPerWeek, String description,
+        String subtitle, String coverImage, String level, String trainingScene, Integer sessionMinutes,
+        String benefitOne, String benefitTwo, String benefitThree,
         boolean active, int sortOrder, Instant createdAt, Instant updatedAt
     ) {
     }

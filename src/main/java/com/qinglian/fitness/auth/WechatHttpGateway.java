@@ -75,6 +75,49 @@ public class WechatHttpGateway implements WechatGateway {
         return new WechatPhone(phone.phoneNumber(), phone.purePhoneNumber(), phone.countryCode());
     }
 
+    @Override
+    public byte[] getDeviceBindingMiniProgramCode() {
+        requireConfigured();
+        String requestBody = toJson(Map.of(
+            "scene", "device-bind",
+            "page", "pages/index/index",
+            "check_path", true,
+            "env_version", properties.resolvedMiniProgramCodeEnvVersion(),
+            "width", 430
+        ));
+        byte[] responseBody = restClient.post()
+            .uri(uriBuilder -> uriBuilder.path("/wxa/getwxacodeunlimit")
+                .queryParam("access_token", accessToken())
+                .build())
+            .contentType(MediaType.APPLICATION_JSON)
+            .contentLength(requestBody.getBytes(StandardCharsets.UTF_8).length)
+            .body(requestBody)
+            .retrieve()
+            .body(byte[].class);
+
+        if (responseBody == null || responseBody.length == 0) {
+            throw wechatError("WECHAT_MINI_PROGRAM_CODE_FAILED", null);
+        }
+        if (isJsonResponse(responseBody)) {
+            WechatErrorResponse response = parseResponse(
+                new String(responseBody, StandardCharsets.UTF_8),
+                WechatErrorResponse.class
+            );
+            throw wechatError(
+                "WECHAT_MINI_PROGRAM_CODE_FAILED",
+                response == null ? null : response.errmsg()
+            );
+        }
+        if (!isPng(responseBody)) {
+            throw new ApiException(
+                HttpStatus.BAD_GATEWAY,
+                "WECHAT_INVALID_RESPONSE",
+                "微信接口没有返回有效的小程序码图片"
+            );
+        }
+        return responseBody;
+    }
+
     private String accessToken() {
         CachedAccessToken current = cachedAccessToken;
         if (current != null && current.expiresAt().isAfter(Instant.now().plusSeconds(300))) {
@@ -145,6 +188,28 @@ public class WechatHttpGateway implements WechatGateway {
         }
     }
 
+    private boolean isJsonResponse(byte[] responseBody) {
+        for (byte value : responseBody) {
+            if (!Character.isWhitespace(value)) {
+                return value == '{';
+            }
+        }
+        return false;
+    }
+
+    private boolean isPng(byte[] responseBody) {
+        byte[] signature = {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+        if (responseBody.length < signature.length) {
+            return false;
+        }
+        for (int index = 0; index < signature.length; index++) {
+            if (responseBody[index] != signature[index]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private record CachedAccessToken(String value, Instant expiresAt) {
     }
 
@@ -199,5 +264,8 @@ public class WechatHttpGateway implements WechatGateway {
             this.purePhoneNumber = purePhoneNumber;
             this.countryCode = countryCode;
         }
+    }
+
+    private record WechatErrorResponse(Integer errcode, String errmsg) {
     }
 }

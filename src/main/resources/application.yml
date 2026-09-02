@@ -28,6 +28,7 @@ wechat:
   app-id: ${WECHAT_APP_ID:wx37520a19c8dba100}
   app-secret: ${WECHAT_APP_SECRET:4ccada04ae920f42b7e27e3447ccfb2e}
   api-base-url: https://api.weixin.qq.com
+  mini-program-code-env-version: ${WECHAT_MINI_PROGRAM_CODE_ENV_VERSION:release}
 
 app:
   session-ttl: ${SESSION_TTL:30d}

@@ -6,5 +6,5 @@ ALTER TABLE courses
     ADD COLUMN IF NOT EXISTS video_duration_seconds INT NULL AFTER video_cover_image;
 
 UPDATE courses
-SET cover_image = REPLACE(cover_image, '/static/fitness/', '/media/images/fitness/')
+SET cover_image = REPLACE(cover_image, '/static/fitness/', '/api/media/files/images/fitness/')
 WHERE cover_image LIKE '/static/fitness/%';

@@ -31,12 +31,6 @@
         where upper(serial_number) = upper(#{serialNumber})
     </select>
 
-    <select id="findByQrToken" resultMap="deviceResultMap">
-        select <include refid="deviceColumns"/>
-        from devices
-        where qr_token = #{qrToken}
-    </select>
-
     <select id="findBindingUserId" resultType="java.lang.Long">
         select user_id from user_device_selections where device_id = #{deviceId}
     </select>

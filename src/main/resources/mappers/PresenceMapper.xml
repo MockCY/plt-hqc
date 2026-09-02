@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.presence.PresenceMapper">
+
+    <insert id="recordDailyOnline">
+        insert ignore into daily_online_users(user_id, online_date, first_seen_at)
+        values (#{userId}, #{onlineDate}, #{firstSeenAt})
+    </insert>
+
+</mapper>

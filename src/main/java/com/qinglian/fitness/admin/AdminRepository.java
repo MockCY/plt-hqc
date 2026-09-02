@@ -6,6 +6,7 @@ import com.qinglian.fitness.mapper.AdminMapper;
 import com.qinglian.fitness.mapper.AdminMapper.CourseData;
 import com.qinglian.fitness.mapper.AdminMapper.InsertCommand;
 import com.qinglian.fitness.mapper.AdminMapper.PlanData;
+import com.qinglian.fitness.presence.PresenceService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
@@ -14,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,24 +24,36 @@ import java.util.UUID;
 @Repository
 public class AdminRepository {
 
-    private final AdminMapper mapper;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
 
-    public AdminRepository(AdminMapper mapper) {
+    private final AdminMapper mapper;
+    private final PresenceService presenceService;
+
+    public AdminRepository(AdminMapper mapper, PresenceService presenceService) {
         this.mapper = mapper;
+        this.presenceService = presenceService;
     }
 
     public Dashboard dashboard() {
-        Instant weekStart = LocalDate.now().minusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC);
-        Map<LocalDate, Long> trend = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate firstTrendDate = today.minusDays(6);
+        Instant weekStart = firstTrendDate.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Map<LocalDate, Long> workoutTrend = new LinkedHashMap<>();
+        Map<LocalDate, Long> onlineTrend = new LinkedHashMap<>();
         for (int offset = 6; offset >= 0; offset--) {
-            trend.put(LocalDate.now().minusDays(offset), 0L);
+            LocalDate date = today.minusDays(offset);
+            workoutTrend.put(date, 0L);
+            onlineTrend.put(date, 0L);
         }
-        mapper.findWorkoutTrend(weekStart).forEach(point -> trend.put(point.date(), point.count()));
+        mapper.findWorkoutTrend(weekStart).forEach(point -> workoutTrend.put(point.date(), point.count()));
+        mapper.findOnlineTrend(firstTrendDate).forEach(point -> onlineTrend.put(point.date(), point.count()));
 
         return new Dashboard(
             mapper.countUsers(), mapper.countUsersSince(weekStart), mapper.countWorkoutsSince(weekStart),
             mapper.countCourses(), mapper.countPendingFeedback(),
-            trend.entrySet().stream().map(item -> new TrendPoint(item.getKey(), item.getValue())).toList(),
+            mapper.countDailyOnline(today), presenceService.currentOnlineCount(),
+            workoutTrend.entrySet().stream().map(item -> new TrendPoint(item.getKey(), item.getValue())).toList(),
+            onlineTrend.entrySet().stream().map(item -> new TrendPoint(item.getKey(), item.getValue())).toList(),
             mapper.findRecentContent(6)
         );
     }
@@ -299,27 +311,23 @@ public class AdminRepository {
         return row;
     }
 
+    @Transactional
     public DeviceRow createDevice(DeviceCreateRequest request) {
         DeviceModelRow model = requireDeviceModel(request.deviceModel());
-        for (int attempt = 0; attempt < 5; attempt++) {
-            String serialNumber = generateSerialNumber(model.snPrefix());
-            GeneratedDevice generated = new GeneratedDevice(serialNumber, randomToken(), model.name());
-            InsertCommand<GeneratedDevice> command = new InsertCommand<>(generated);
-            try {
-                mapper.insertDevice(command);
-                return device(generatedId(command));
-            } catch (DataIntegrityViolationException exception) {
-                if (attempt == 4) {
-                    throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ID_GENERATION_FAILED", "无法生成唯一设备标识，请重试");
-                }
-            }
+        long sequence = mapper.lockDeviceSerialSequence(model.id()) + 1;
+        if (sequence > DeviceSerialNumber.MAX_SEQUENCE) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_SN_EXHAUSTED", "该型号的设备流水号已用完");
         }
-        throw new IllegalStateException("无法生成唯一设备编号");
-    }
-
-    public String deviceQrPayload(long id) {
-        device(id);
-        return "ARVELLO:BIND:" + mapper.findDeviceQrToken(id);
+        GeneratedDevice generated = new GeneratedDevice(
+            DeviceSerialNumber.format(model.snPrefix(), sequence), randomToken(), model.name());
+        InsertCommand<GeneratedDevice> command = new InsertCommand<>(generated);
+        mapper.updateDeviceSerialSequence(model.id(), sequence);
+        try {
+            mapper.insertDevice(command);
+            return device(generatedId(command));
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ID_GENERATION_FAILED", "无法生成唯一设备 SN，请检查已有数据");
+        }
     }
 
     public void deleteDevice(long id) {
@@ -343,6 +351,8 @@ public class AdminRepository {
 
     private PlanRow toPlanRow(PlanData row) {
         return new PlanRow(row.id(), row.title(), row.weekNumber(), row.sessionsPerWeek(), row.description(),
+            row.subtitle(), row.coverImage(), row.level(), row.trainingScene(), row.sessionMinutes(),
+            row.benefitOne(), row.benefitTwo(), row.benefitThree(),
             row.active(), row.sortOrder(), mapper.findPlanItems(row.id()), row.createdAt(), row.updatedAt());
     }
 
@@ -404,12 +414,6 @@ public class AdminRepository {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_INVALID", "设备型号不正确");
         }
         return row;
-    }
-
-    private String generateSerialNumber(String prefix) {
-        String date = LocalDate.now(ZoneId.of("Asia/Shanghai")).toString().replace("-", "");
-        return prefix.toUpperCase(Locale.ROOT) + "-" + date + "-"
-            + randomToken().substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
     private String randomToken() {

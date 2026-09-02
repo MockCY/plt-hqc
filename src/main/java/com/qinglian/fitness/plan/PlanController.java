@@ -7,6 +7,7 @@ import com.qinglian.fitness.plan.PlanDtos.PlanSelection;
 import com.qinglian.fitness.plan.PlanDtos.PlanSummary;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -26,14 +27,21 @@ public class PlanController {
     }
 
     @GetMapping("/current")
-    public PlanView current(HttpServletRequest request) {
+    public ResponseEntity<PlanView> current(HttpServletRequest request) {
         return repository.currentPlan(CurrentUser.id(request))
-            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_NOT_FOUND", "当前没有可用训练计划"));
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/catalog")
     public List<PlanSummary> catalog() {
         return repository.catalog();
+    }
+
+    @GetMapping("/detail/{id}")
+    public PlanView detail(@PathVariable long id) {
+        return repository.detail(id)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_NOT_FOUND", "训练计划不存在"));
     }
 
     @PutMapping("/{id}/select")

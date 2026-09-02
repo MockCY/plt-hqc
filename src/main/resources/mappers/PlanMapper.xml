@@ -11,6 +11,14 @@
             <arg column="week_number" javaType="_int"/>
             <arg column="sessions_per_week" javaType="_int"/>
             <arg column="description" javaType="java.lang.String"/>
+            <arg column="subtitle" javaType="java.lang.String"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="training_scene" javaType="java.lang.String"/>
+            <arg column="session_minutes" javaType="java.lang.Integer"/>
+            <arg column="benefit_one" javaType="java.lang.String"/>
+            <arg column="benefit_two" javaType="java.lang.String"/>
+            <arg column="benefit_three" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
@@ -31,6 +39,14 @@
             <arg column="title" javaType="java.lang.String"/>
             <arg column="sessions_per_week" javaType="_int"/>
             <arg column="description" javaType="java.lang.String"/>
+            <arg column="subtitle" javaType="java.lang.String"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="training_scene" javaType="java.lang.String"/>
+            <arg column="session_minutes" javaType="java.lang.Integer"/>
+            <arg column="benefit_one" javaType="java.lang.String"/>
+            <arg column="benefit_two" javaType="java.lang.String"/>
+            <arg column="benefit_three" javaType="java.lang.String"/>
             <arg column="course_count" javaType="_int"/>
         </constructor>
     </resultMap>
@@ -40,7 +56,8 @@
     </select>
 
     <select id="findPlanHeader" resultMap="planHeaderResultMap">
-        select id, title, week_number, sessions_per_week, description
+        select id, title, week_number, sessions_per_week, description, subtitle, cover_image, level,
+               training_scene, session_minutes, benefit_one, benefit_two, benefit_three
         from training_plans
         where active = true
         <if test="planId != null">
@@ -64,11 +81,14 @@
     </select>
 
     <select id="catalog" resultMap="planSummaryResultMap">
-        select p.id, p.title, p.sessions_per_week, p.description, count(pi.id) course_count
+        select p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.level,
+               p.training_scene, p.session_minutes, p.benefit_one, p.benefit_two, p.benefit_three,
+               count(pi.id) course_count
         from training_plans p
         left join training_plan_items pi on pi.plan_id = p.id
         where p.active = true
-        group by p.id, p.title, p.sessions_per_week, p.description, p.sort_order
+        group by p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.level,
+                 p.training_scene, p.session_minutes, p.benefit_one, p.benefit_two, p.benefit_three, p.sort_order
         order by p.sort_order, p.id
     </select>
 

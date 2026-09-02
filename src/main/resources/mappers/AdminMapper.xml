@@ -6,8 +6,8 @@
 
     <resultMap id="trendPointMap" type="com.qinglian.fitness.admin.AdminDtos$TrendPoint">
         <constructor>
-            <arg column="workout_date" javaType="java.time.LocalDate"/>
-            <arg column="workout_count" javaType="_long"/>
+            <arg column="metric_date" javaType="java.time.LocalDate"/>
+            <arg column="metric_count" javaType="_long"/>
         </constructor>
     </resultMap>
 
@@ -85,6 +85,14 @@
             <arg column="week_number" javaType="_int"/>
             <arg column="sessions_per_week" javaType="_int"/>
             <arg column="description" javaType="java.lang.String"/>
+            <arg column="subtitle" javaType="java.lang.String"/>
+            <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="training_scene" javaType="java.lang.String"/>
+            <arg column="session_minutes" javaType="java.lang.Integer"/>
+            <arg column="benefit_one" javaType="java.lang.String"/>
+            <arg column="benefit_two" javaType="java.lang.String"/>
+            <arg column="benefit_three" javaType="java.lang.String"/>
             <arg column="active" javaType="_boolean"/>
             <arg column="sort_order" javaType="_int"/>
             <arg column="created_at" javaType="java.time.Instant"/>
@@ -196,12 +204,24 @@
         select count(*) from user_feedback where status in ('SUBMITTED', 'PROCESSING')
     </select>
 
+    <select id="countDailyOnline" resultType="long">
+        select count(*) from daily_online_users where online_date = #{date}
+    </select>
+
     <select id="findWorkoutTrend" resultMap="trendPointMap">
-        select date(completed_at) workout_date, count(*) workout_count
+        select date(completed_at) metric_date, count(*) metric_count
         from workout_records
         where completed_at &gt;= #{since}
         group by date(completed_at)
-        order by workout_date
+        order by metric_date
+    </select>
+
+    <select id="findOnlineTrend" resultMap="trendPointMap">
+        select online_date metric_date, count(*) metric_count
+        from daily_online_users
+        where online_date &gt;= #{since}
+        group by online_date
+        order by metric_date
     </select>
 
     <select id="findRecentContent" resultMap="recentContentMap">
@@ -370,16 +390,26 @@
     </select>
 
     <insert id="insertPlan" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into training_plans(title, week_number, sessions_per_week, description, active, sort_order)
+        insert into training_plans(title, week_number, sessions_per_week, description, subtitle, cover_image,
+            level, training_scene, session_minutes, benefit_one, benefit_two, benefit_three, active, sort_order)
         values (trim(#{request.title}), #{request.weekNumber}, #{request.sessionsPerWeek},
-            nullif(trim(#{request.description}), ''), #{request.active}, #{request.sortOrder})
+            nullif(trim(#{request.description}), ''), nullif(trim(#{request.subtitle}), ''),
+            nullif(trim(#{request.coverImage}), ''), nullif(trim(#{request.level}), ''),
+            nullif(trim(#{request.trainingScene}), ''), #{request.sessionMinutes},
+            nullif(trim(#{request.benefitOne}), ''), nullif(trim(#{request.benefitTwo}), ''),
+            nullif(trim(#{request.benefitThree}), ''), #{request.active}, #{request.sortOrder})
     </insert>
 
     <update id="updatePlan">
         update training_plans
         set title = trim(#{request.title}), week_number = #{request.weekNumber},
             sessions_per_week = #{request.sessionsPerWeek},
-            description = nullif(trim(#{request.description}), ''), active = #{request.active},
+            description = nullif(trim(#{request.description}), ''),
+            subtitle = nullif(trim(#{request.subtitle}), ''), cover_image = nullif(trim(#{request.coverImage}), ''),
+            level = nullif(trim(#{request.level}), ''), training_scene = nullif(trim(#{request.trainingScene}), ''),
+            session_minutes = #{request.sessionMinutes}, benefit_one = nullif(trim(#{request.benefitOne}), ''),
+            benefit_two = nullif(trim(#{request.benefitTwo}), ''), benefit_three = nullif(trim(#{request.benefitThree}), ''),
+            active = #{request.active},
             sort_order = #{request.sortOrder}
         where id = #{id}
     </update>
@@ -570,14 +600,18 @@
         where d.id = #{id}
     </select>
 
+    <select id="lockDeviceSerialSequence" resultType="long">
+        select next_serial_sequence from device_models where id = #{id} for update
+    </select>
+
+    <update id="updateDeviceSerialSequence">
+        update device_models set next_serial_sequence = #{sequence} where id = #{id}
+    </update>
+
     <insert id="insertDevice" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         insert into devices(serial_number, qr_token, device_model)
         values (upper(trim(#{request.serialNumber})), #{request.qrToken}, trim(#{request.deviceModel}))
     </insert>
-
-    <select id="findDeviceQrToken" resultType="string">
-        select qr_token from devices where id = #{id}
-    </select>
 
     <delete id="deleteDevice">delete from devices where id = #{id}</delete>
 

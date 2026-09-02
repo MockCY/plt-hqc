@@ -8,6 +8,7 @@ import com.qinglian.fitness.device.DeviceDtos.BoundDevice;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,20 +27,21 @@ public class DeviceController {
     }
 
     @GetMapping("/current")
-    public BoundDevice current(HttpServletRequest request) {
+    public ResponseEntity<BoundDevice> current(HttpServletRequest request) {
         return repository.current(CurrentUser.id(request))
-            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_BOUND", "当前账号尚未绑定设备"));
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/bind")
     @ResponseStatus(HttpStatus.CREATED)
     public BoundDevice bind(HttpServletRequest request, @Valid @RequestBody BindRequest body) {
-        BindResult result = repository.bind(CurrentUser.id(request), body.serialNumber(), body.qrToken());
+        BindResult result = repository.bind(CurrentUser.id(request), body.serialNumber());
         return switch (result.status()) {
             case BOUND -> result.device();
-            case NOT_FOUND -> throw new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_FOUND", "没有找到该设备，请检查设备编号");
+            case NOT_FOUND -> throw new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_FOUND", "没有找到该设备，请检查 SN 码");
             case ALREADY_BOUND -> throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_BOUND", "该设备已绑定其他账号");
-            case INVALID -> throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BINDING_INVALID", "请输入设备编号或扫描设备二维码");
+            case INVALID -> throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BINDING_INVALID", "请输入设备 SN 码");
         };
     }
 

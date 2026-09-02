@@ -1,5 +1,7 @@
 package com.qinglian.fitness.device;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
@@ -20,8 +22,9 @@ public final class DeviceDtos {
     }
 
     public record BindRequest(
-        @Size(max = 64, message = "设备编号不能超过64个字符") String serialNumber,
-        @Size(max = 64, message = "二维码令牌不能超过64个字符") String qrToken
+        @NotBlank(message = "请输入设备 SN 码")
+        @Size(max = 64, message = "设备 SN 码不能超过64个字符")
+        @Pattern(regexp = "[A-Za-z0-9-]+", message = "设备 SN 码只能包含字母、数字或连字符") String serialNumber
     ) {
     }
 

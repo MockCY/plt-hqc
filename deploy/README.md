@@ -55,6 +55,9 @@ DB_URL=jdbc:mysql://host.docker.internal:3306/hqc_plt?useUnicode=true&characterE
 
 ## 构建并启动
 
+已有数据库依次执行 `database/14-sequential-device-sn.sql`、`database/15-online-presence.sql` 和
+`database/16-plan-presentation.sql`，分别补齐设备序列号、每日在线用户和计划展示字段。
+
 Docker 会在构建镜像时使用 Java 21 完成测试与打包，服务器无需单独安装 Java 或 Maven：
 
 ```bash
@@ -68,6 +71,7 @@ docker compose up -d --build
 docker compose ps
 docker compose logs -f --tail=200
 curl http://127.0.0.1:8080/api/health
+curl -I http://127.0.0.1:8080/api/media/files/images/fitness/course-fullbody.jpg
 ```
 
 ## 更新版本

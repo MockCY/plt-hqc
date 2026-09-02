@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     CONSTRAINT fk_auth_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS daily_online_users (
+    user_id BIGINT UNSIGNED NOT NULL,
+    online_date DATE NOT NULL,
+    first_seen_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (online_date, user_id),
+    KEY idx_daily_online_users_user (user_id, online_date),
+    CONSTRAINT fk_daily_online_users_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS courses (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     title VARCHAR(80) NOT NULL,
@@ -105,6 +114,14 @@ CREATE TABLE IF NOT EXISTS training_plans (
     week_number INT NOT NULL DEFAULT 1,
     sessions_per_week INT NOT NULL DEFAULT 3,
     description VARCHAR(300) NULL,
+    subtitle VARCHAR(160) NULL,
+    cover_image VARCHAR(500) NULL,
+    level VARCHAR(30) NULL,
+    training_scene VARCHAR(30) NULL,
+    session_minutes INT NULL,
+    benefit_one VARCHAR(80) NULL,
+    benefit_two VARCHAR(80) NULL,
+    benefit_three VARCHAR(80) NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -211,6 +228,7 @@ CREATE TABLE IF NOT EXISTS device_models (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     sn_prefix VARCHAR(12) NOT NULL,
+    next_serial_sequence BIGINT UNSIGNED NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),

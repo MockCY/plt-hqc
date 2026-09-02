@@ -2,7 +2,10 @@ package com.qinglian.fitness.media;
 
 import com.qinglian.fitness.common.ApiException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -68,10 +71,32 @@ public class MediaStorageService {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "MEDIA_SAVE_FAILED", "媒体文件保存失败");
         }
 
-        String path = "/media/" + relativeDirectory + "/" + filename;
+        String path = "/api/media/files/" + relativeDirectory + "/" + filename;
         return new StoredMedia(path, normalizedKind, contentType, file.getSize(), file.getOriginalFilename());
     }
 
+    public StoredFile load(String relativePath) {
+        String normalizedRelativePath = relativePath == null ? "" : relativePath.replace('\\', '/');
+        while (normalizedRelativePath.startsWith("/")) {
+            normalizedRelativePath = normalizedRelativePath.substring(1);
+        }
+        Path target = root.resolve(normalizedRelativePath).normalize();
+        if (!target.startsWith(root) || !Files.isRegularFile(target)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "媒体文件不存在");
+        }
+        try {
+            String detectedType = Files.probeContentType(target);
+            MediaType mediaType = detectedType == null
+                ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(detectedType);
+            return new StoredFile(new FileSystemResource(target), mediaType);
+        } catch (IOException exception) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "MEDIA_READ_FAILED", "媒体文件读取失败");
+        }
+    }
+
     public record StoredMedia(String url, String kind, String contentType, long size, String originalName) {
+    }
+
+    public record StoredFile(Resource resource, MediaType mediaType) {
     }
 }

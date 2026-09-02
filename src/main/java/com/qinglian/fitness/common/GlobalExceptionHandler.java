@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -29,6 +30,12 @@ public class GlobalExceptionHandler {
             ? "请求参数不正确"
             : fieldError.getField() + "：" + fieldError.getDefaultMessage();
         return ResponseEntity.badRequest().body(ApiError.of("VALIDATION_ERROR", message));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(NoResourceFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiError.of("NOT_FOUND", "请求的资源不存在"));
     }
 
     @ExceptionHandler(Exception.class)
