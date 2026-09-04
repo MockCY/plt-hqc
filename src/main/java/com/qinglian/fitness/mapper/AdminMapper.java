@@ -151,16 +151,37 @@ public interface AdminMapper {
 
     int deleteDeviceModel(@Param("id") long id);
 
-    long countDevicesFiltered(@Param("query") String query, @Param("deviceModel") String deviceModel);
+    long countDevicesFiltered(
+        @Param("query") String query,
+        @Param("serialNumber") String serialNumber,
+        @Param("deviceQuery") String deviceQuery,
+        @Param("boundUser") String boundUser,
+        @Param("deviceModel") String deviceModel,
+        @Param("brand") String brand,
+        @Param("deviceSource") String deviceSource,
+        @Param("bindingStatus") String bindingStatus,
+        @Param("createdFrom") java.time.LocalDate createdFrom,
+        @Param("createdTo") java.time.LocalDate createdTo
+    );
 
     List<DeviceRow> findDevices(
         @Param("query") String query,
+        @Param("serialNumber") String serialNumber,
+        @Param("deviceQuery") String deviceQuery,
+        @Param("boundUser") String boundUser,
         @Param("deviceModel") String deviceModel,
+        @Param("brand") String brand,
+        @Param("deviceSource") String deviceSource,
+        @Param("bindingStatus") String bindingStatus,
+        @Param("createdFrom") java.time.LocalDate createdFrom,
+        @Param("createdTo") java.time.LocalDate createdTo,
         @Param("limit") int limit,
         @Param("offset") int offset
     );
 
     DeviceRow findDevice(@Param("id") long id);
+
+    List<DeviceRow> findDevicesByIds(@Param("ids") List<Long> ids);
 
     long lockDeviceSerialSequence(@Param("id") long id);
 

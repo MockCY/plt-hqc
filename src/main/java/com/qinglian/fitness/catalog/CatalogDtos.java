@@ -37,7 +37,8 @@ public final class CatalogDtos {
         String coverImage,
         String videoUrl,
         String videoCoverImage,
-        Integer videoDurationSeconds
+        Integer videoDurationSeconds,
+        String backgroundMusicUrl
     ) {
     }
 
@@ -51,7 +52,8 @@ public final class CatalogDtos {
         String coverImage,
         String videoUrl,
         String videoCoverImage,
-        Integer videoDurationSeconds
+        Integer videoDurationSeconds,
+        String backgroundMusicUrl
     ) {
     }
 

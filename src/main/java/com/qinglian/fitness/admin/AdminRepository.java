@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -297,18 +298,42 @@ public class AdminRepository {
         }
     }
 
-    public PageResult<DeviceRow> devices(String query, String deviceModel, int page, int pageSize) {
+    public PageResult<DeviceRow> devices(String query, String serialNumber, String deviceQuery, String boundUser,
+                                         String deviceModel, String brand, String deviceSource, String bindingStatus,
+                                         LocalDate createdFrom, LocalDate createdTo,
+                                         int page, int pageSize) {
         Paging paging = paging(page, pageSize);
         String normalizedQuery = normalizeQuery(query);
+        String normalizedSerialNumber = normalizeQuery(serialNumber);
+        String normalizedDeviceQuery = normalizeQuery(deviceQuery);
+        String normalizedBoundUser = normalizeQuery(boundUser);
         String normalizedModel = normalizeDeviceModel(deviceModel);
-        return new PageResult<>(mapper.findDevices(normalizedQuery, normalizedModel, paging.pageSize(), paging.offset()),
-            mapper.countDevicesFiltered(normalizedQuery, normalizedModel), paging.page(), paging.pageSize());
+        String normalizedBrand = normalizeDeviceBrandFilter(brand);
+        String normalizedSource = normalizeDeviceSourceFilter(deviceSource);
+        String normalizedBindingStatus = normalizeBindingStatus(bindingStatus);
+        validateDates(createdFrom, createdTo);
+        return new PageResult<>(mapper.findDevices(normalizedQuery, normalizedSerialNumber, normalizedDeviceQuery,
+                normalizedBoundUser, normalizedModel, normalizedBrand, normalizedSource, normalizedBindingStatus,
+                createdFrom, createdTo, paging.pageSize(), paging.offset()),
+            mapper.countDevicesFiltered(normalizedQuery, normalizedSerialNumber, normalizedDeviceQuery,
+                normalizedBoundUser, normalizedModel, normalizedBrand, normalizedSource, normalizedBindingStatus,
+                createdFrom, createdTo), paging.page(), paging.pageSize());
     }
 
     public DeviceRow device(long id) {
         DeviceRow row = mapper.findDevice(id);
         if (row == null) throw notFound("DEVICE_NOT_FOUND", "设备不存在");
         return row;
+    }
+
+    public List<DeviceRow> devicesByIds(List<Long> ids) {
+        List<Long> distinctIds = new LinkedHashSet<>(ids).stream().toList();
+        List<DeviceRow> rows = mapper.findDevicesByIds(distinctIds);
+        Map<Long, DeviceRow> rowsById = rows.stream().collect(java.util.stream.Collectors.toMap(DeviceRow::id, row -> row));
+        if (rowsById.size() != distinctIds.size()) {
+            throw notFound("DEVICE_NOT_FOUND", "部分设备不存在或已被删除");
+        }
+        return distinctIds.stream().map(rowsById::get).toList();
     }
 
     @Transactional
@@ -319,7 +344,7 @@ public class AdminRepository {
             throw new ApiException(HttpStatus.CONFLICT, "DEVICE_SN_EXHAUSTED", "该型号的设备流水号已用完");
         }
         GeneratedDevice generated = new GeneratedDevice(
-            DeviceSerialNumber.format(model.snPrefix(), sequence), randomToken(), model.name());
+            DeviceSerialNumber.format(model.snPrefix(), sequence), randomToken(), model.name(), normalizeBrand(request.brand()));
         InsertCommand<GeneratedDevice> command = new InsertCommand<>(generated);
         mapper.updateDeviceSerialSequence(model.id(), sequence);
         try {
@@ -328,6 +353,34 @@ public class AdminRepository {
         } catch (DataIntegrityViolationException exception) {
             throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ID_GENERATION_FAILED", "无法生成唯一设备 SN，请检查已有数据");
         }
+    }
+
+    @Transactional
+    public DeviceBatchCreateResult createDevices(DeviceBatchCreateRequest request) {
+        DeviceModelRow model = requireDeviceModel(request.deviceModel());
+        long currentSequence = mapper.lockDeviceSerialSequence(model.id());
+        if (currentSequence > DeviceSerialNumber.MAX_SEQUENCE - request.quantity()) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_SN_EXHAUSTED", "该型号剩余的设备流水号不足");
+        }
+
+        long firstSequence = currentSequence + 1;
+        long lastSequence = currentSequence + request.quantity();
+        String brand = normalizeBrand(request.brand());
+        mapper.updateDeviceSerialSequence(model.id(), lastSequence);
+        try {
+            for (long sequence = firstSequence; sequence <= lastSequence; sequence++) {
+                GeneratedDevice generated = new GeneratedDevice(
+                    DeviceSerialNumber.format(model.snPrefix(), sequence), randomToken(), model.name(), brand);
+                mapper.insertDevice(new InsertCommand<>(generated));
+            }
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ID_GENERATION_FAILED", "无法生成唯一设备 SN，请检查已有数据");
+        }
+        return new DeviceBatchCreateResult(
+            request.quantity(),
+            DeviceSerialNumber.format(model.snPrefix(), firstSequence),
+            DeviceSerialNumber.format(model.snPrefix(), lastSequence)
+        );
     }
 
     public void deleteDevice(long id) {
@@ -408,12 +461,43 @@ public class AdminRepository {
         return value == null || value.isBlank() || "ALL".equalsIgnoreCase(value) ? null : value.trim();
     }
 
+    private String normalizeDeviceBrandFilter(String value) {
+        if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) return null;
+        if ("manhart".equalsIgnoreCase(value.trim())) return "Manhart";
+        if ("ARVELLO".equalsIgnoreCase(value.trim())) return "ARVELLO";
+        if ("UNBRANDED".equalsIgnoreCase(value.trim())) return "UNBRANDED";
+        throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BRAND_FILTER_INVALID", "设备品牌筛选条件不正确");
+    }
+
+    private String normalizeDeviceSourceFilter(String value) {
+        if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) return null;
+        if ("OWN".equalsIgnoreCase(value.trim())) return "OWN";
+        if ("THIRD_PARTY".equalsIgnoreCase(value.trim())) return "THIRD_PARTY";
+        throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_SOURCE_FILTER_INVALID", "设备来源筛选条件不正确");
+    }
+
+    private String normalizeBindingStatus(String value) {
+        if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) return null;
+        if ("BOUND".equalsIgnoreCase(value.trim())) return "BOUND";
+        if ("UNBOUND".equalsIgnoreCase(value.trim())) return "UNBOUND";
+        throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BINDING_FILTER_INVALID", "设备绑定状态筛选条件不正确");
+    }
+
     private DeviceModelRow requireDeviceModel(String deviceModel) {
         DeviceModelRow row = deviceModel == null ? null : mapper.findDeviceModelByName(deviceModel.trim());
         if (row == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_INVALID", "设备型号不正确");
         }
         return row;
+    }
+
+    private String normalizeBrand(String brand) {
+        if (brand == null || brand.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BRAND_REQUIRED", "请选择设备品牌");
+        }
+        if ("manhart".equalsIgnoreCase(brand.trim())) return "Manhart";
+        if ("ARVELLO".equalsIgnoreCase(brand.trim())) return "ARVELLO";
+        throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BRAND_INVALID", "设备品牌只能选择 Manhart 或 ARVELLO");
     }
 
     private String randomToken() {

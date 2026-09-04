@@ -56,6 +56,8 @@ database/16-plan-presentation.sql
 `database/14-sequential-device-sn.sql`，为每个型号增加受数据库行锁保护的 SN 流水号。所有已有数据库还需执行
 `database/15-online-presence.sql`，用于按天去重记录在线用户。
 计划页升级后还需执行 `database/16-plan-presentation.sql`，用于增加计划封面、展示标签、单次时长和完成收益字段。
+设备品牌与第三方设备升级需执行 `database/17-device-brand-and-source.sql`，用于增加品牌、设备名称和设备来源，并允许用户登记自定义的第三方型号。
+随后执行 `database/18-device-brand-integrity.sql`，用于修复旧服务写入的空品牌并增加品牌完整性约束。
 
 版本早于 `12-device-qr-and-sn.sql` 的旧数据库，应按编号依次执行尚未运行的 `09` 至 `15` 升级脚本。
 执行 `09` 前先用脚本内的审计语句确认历史设备没有重复绑定。
@@ -125,7 +127,8 @@ Authorization: Bearer <token>
 | GET | `/api/plans/current` | 是 | 当前训练计划；未选择时返回 `204` |
 | PUT | `/api/plans/{id}/select` | 是 | 选择并保存当前计划 |
 | GET | `/api/devices/current` | 是 | 查询当前账号绑定的设备档案；未绑定时返回 `204` |
-| POST | `/api/devices/bind` | 是 | 使用设备 SN 码绑定到当前账号 |
+| POST | `/api/devices/bind` | 是 | 使用自有设备 SN 码绑定到当前账号 |
+| POST | `/api/devices/third-party` | 是 | 创建第三方设备，系统自动生成内部 SN 并绑定当前账号 |
 | DELETE | `/api/devices/current` | 是 | 解除当前账号的设备绑定 |
 | POST | `/api/workout-records` | 是 | 写入训练记录 |
 | GET | `/api/workout-records` | 是 | 训练记录列表 |
@@ -148,10 +151,12 @@ Authorization: Bearer <token>
 BCrypt 摘要保存在数据库中。
 
 后台支持数据概览、用户查询、课程与动作维护、训练计划与训练营维护、训练记录查询、反馈处理、
-媒体上传和操作日志。生产环境不要保留空的 `ADMIN_PASSWORD`。
+媒体上传和操作日志。设备管理支持单台新增和单次最多 100 台的批量新增，批量设备会在同一事务中生成连续 SN；
+还可勾选最多 100 台自有设备，导出包含品牌、型号、SN 和完整设备标签图片的 Excel 文件。
+生产环境不要保留空的 `ADMIN_PASSWORD`。
 
-设备标签统一使用微信官方接口 `getwxacodeunlimit` 生成的小程序码，参数固定为
-`scene=device-bind`、`page=pages/index/index`。用户微信扫码后，小程序读取 `scene` 并直接打开 SN 绑定页，
+设备标签统一使用微信官方接口 `getwxacodeunlimit` 生成小程序码，参数固定为
+`scene=device-bind`，页面参数留空并由微信打开小程序首页。用户微信扫码后，小程序读取 `scene` 并直接打开 SN 绑定页，
 因此不需要配置 Nginx `/device-bind` 路由，也不需要在微信公众平台配置“扫普通链接二维码打开小程序”。
 
 所有设备标签共用同一个小程序码，区别仅在标签下方的唯一 SN。服务进程会缓存小程序码，重启后的首次标签下载会重新调用微信接口。

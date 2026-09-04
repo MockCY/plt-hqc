@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
@@ -29,13 +31,15 @@ public class AdminController {
     private final AdminRepository repository;
     private final MediaStorageService mediaStorage;
     private final DeviceQrCodeService deviceQrCodeService;
+    private final DeviceExcelExportService deviceExcelExportService;
 
     public AdminController(AdminAuthService authService, AdminRepository repository, MediaStorageService mediaStorage,
-                           DeviceQrCodeService deviceQrCodeService) {
+                           DeviceQrCodeService deviceQrCodeService, DeviceExcelExportService deviceExcelExportService) {
         this.authService = authService;
         this.repository = repository;
         this.mediaStorage = mediaStorage;
         this.deviceQrCodeService = deviceQrCodeService;
+        this.deviceExcelExportService = deviceExcelExportService;
     }
 
     @PostMapping("/auth/login")
@@ -258,11 +262,20 @@ public class AdminController {
     @GetMapping("/devices")
     public PageResult<DeviceRow> devices(
         @RequestParam(required = false) String query,
+        @RequestParam(required = false) String serialNumber,
+        @RequestParam(required = false) String deviceQuery,
+        @RequestParam(required = false) String boundUser,
         @RequestParam(required = false) String deviceModel,
+        @RequestParam(required = false) String brand,
+        @RequestParam(required = false) String deviceSource,
+        @RequestParam(required = false) String bindingStatus,
+        @RequestParam(required = false) LocalDate createdFrom,
+        @RequestParam(required = false) LocalDate createdTo,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int pageSize
     ) {
-        return repository.devices(query, deviceModel, page, pageSize);
+        return repository.devices(query, serialNumber, deviceQuery, boundUser, deviceModel, brand, deviceSource,
+            bindingStatus, createdFrom, createdTo, page, pageSize);
     }
 
     @GetMapping("/device-models")
@@ -309,8 +322,35 @@ public class AdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public DeviceRow createDevice(@Valid @RequestBody DeviceCreateRequest body, HttpServletRequest request) {
         DeviceRow created = repository.createDevice(body);
-        audit(request, "CREATE", "DEVICE", created.id(), "新增设备：" + created.serialNumber());
+        audit(request, "CREATE", "DEVICE", created.id(), "新增设备：" + created.serialNumber() + "，品牌：" + created.brand());
         return created;
+    }
+
+    @PostMapping("/devices/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeviceBatchCreateResult createDevices(
+        @Valid @RequestBody DeviceBatchCreateRequest body,
+        HttpServletRequest request
+    ) {
+        DeviceBatchCreateResult created = repository.createDevices(body);
+        audit(request, "CREATE", "DEVICE", null,
+            "批量新增设备：" + body.deviceModel() + "，品牌：" + body.brand() + "，共 " + created.count() + " 台（"
+                + created.firstSerialNumber() + " 至 " + created.lastSerialNumber() + "）");
+        return created;
+    }
+
+    @PostMapping(value = "/devices/export", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportDevices(
+        @Valid @RequestBody DeviceExportRequest body,
+        HttpServletRequest request
+    ) {
+        java.util.List<DeviceRow> devices = repository.devicesByIds(body.deviceIds());
+        byte[] workbook = deviceExcelExportService.export(devices);
+        audit(request, "EXPORT", "DEVICE", null, "批量导出设备标签：共 " + devices.size() + " 台");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+            .filename("ARVELLO-device-labels.xlsx", java.nio.charset.StandardCharsets.UTF_8).build());
+        return ResponseEntity.ok().headers(headers).body(workbook);
     }
 
     @DeleteMapping("/devices/{id}")
@@ -339,7 +379,12 @@ public class AdminController {
         HttpServletRequest request
     ) {
         StoredMedia stored = mediaStorage.store(file, kind);
-        audit(request, "UPLOAD", "MEDIA", null, "上传" + ("video".equals(stored.kind()) ? "视频" : "图片") + "：" + stored.originalName());
+        String mediaLabel = switch (stored.kind()) {
+            case "video" -> "视频";
+            case "audio" -> "音频";
+            default -> "图片";
+        };
+        audit(request, "UPLOAD", "MEDIA", null, "上传" + mediaLabel + "：" + stored.originalName());
         return stored;
     }
 

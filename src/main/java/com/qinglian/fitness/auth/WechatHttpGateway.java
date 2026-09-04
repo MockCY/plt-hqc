@@ -80,8 +80,6 @@ public class WechatHttpGateway implements WechatGateway {
         requireConfigured();
         String requestBody = toJson(Map.of(
             "scene", "device-bind",
-            "page", "pages/index/index",
-            "check_path", true,
             "env_version", properties.resolvedMiniProgramCodeEnvVersion(),
             "width", 430
         ));
@@ -108,7 +106,7 @@ public class WechatHttpGateway implements WechatGateway {
                 response == null ? null : response.errmsg()
             );
         }
-        if (!isPng(responseBody)) {
+        if (!isSupportedImage(responseBody)) {
             throw new ApiException(
                 HttpStatus.BAD_GATEWAY,
                 "WECHAT_INVALID_RESPONSE",
@@ -197,6 +195,10 @@ public class WechatHttpGateway implements WechatGateway {
         return false;
     }
 
+    private boolean isSupportedImage(byte[] responseBody) {
+        return isPng(responseBody) || isJpeg(responseBody);
+    }
+
     private boolean isPng(byte[] responseBody) {
         byte[] signature = {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
         if (responseBody.length < signature.length) {
@@ -208,6 +210,13 @@ public class WechatHttpGateway implements WechatGateway {
             }
         }
         return true;
+    }
+
+    private boolean isJpeg(byte[] responseBody) {
+        return responseBody.length >= 3
+            && responseBody[0] == (byte) 0xff
+            && responseBody[1] == (byte) 0xd8
+            && responseBody[2] == (byte) 0xff;
     }
 
     private record CachedAccessToken(String value, Instant expiresAt) {

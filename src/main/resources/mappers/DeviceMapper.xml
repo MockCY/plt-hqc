@@ -11,7 +11,10 @@
     <resultMap id="boundDeviceResultMap" type="com.qinglian.fitness.device.DeviceDtos$BoundDevice">
         <constructor>
             <idArg column="id" javaType="_long"/>
+            <arg column="device_name" javaType="java.lang.String"/>
             <arg column="device_model" javaType="java.lang.String"/>
+            <arg column="brand" javaType="java.lang.String"/>
+            <arg column="device_source" javaType="java.lang.String"/>
             <arg column="serial_number" javaType="java.lang.String"/>
             <arg column="bound_at" javaType="java.time.LocalDateTime"/>
         </constructor>
@@ -20,7 +23,8 @@
     <sql id="deviceColumns">id, device_model</sql>
 
     <select id="findCurrent" resultMap="boundDeviceResultMap">
-        select d.id, d.device_model, d.serial_number, uds.selected_at as bound_at
+        select d.id, coalesce(d.device_name, d.device_model) device_name, d.device_model,
+               d.brand, d.device_source, d.serial_number, uds.selected_at as bound_at
         from user_device_selections uds join devices d on d.id = uds.device_id
         where uds.user_id = #{userId}
     </select>
@@ -30,6 +34,11 @@
         from devices
         where upper(serial_number) = upper(#{serialNumber})
     </select>
+
+    <insert id="insertThirdPartyDevice">
+        insert into devices(serial_number, qr_token, device_model, brand, device_name, device_source)
+        values (#{serialNumber}, #{qrToken}, trim(#{deviceModel}), null, trim(#{deviceName}), 'THIRD_PARTY')
+    </insert>
 
     <select id="findBindingUserId" resultType="java.lang.Long">
         select user_id from user_device_selections where device_id = #{deviceId}

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -80,7 +81,7 @@ public final class AdminDtos {
     public record ExerciseRow(
         long id, String name, String bodyPart, String level, String equipment, int suggestedSets,
         String target, String cue, String safetyTip, String coverImage, String videoUrl,
-        String videoCoverImage, Integer videoDurationSeconds, String status, int sortOrder,
+        String videoCoverImage, Integer videoDurationSeconds, String backgroundMusicUrl, String status, int sortOrder,
         Instant createdAt, Instant updatedAt
     ) {
     }
@@ -98,6 +99,7 @@ public final class AdminDtos {
         @Size(max = 500) String videoUrl,
         @Size(max = 500) String videoCoverImage,
         @Min(0) Integer videoDurationSeconds,
+        @Size(max = 500) String backgroundMusicUrl,
         @NotBlank String status,
         int sortOrder
     ) {
@@ -180,18 +182,41 @@ public final class AdminDtos {
     }
 
     public record DeviceRow(
-        long id, String serialNumber, String deviceModel, boolean bound,
+        long id, String serialNumber, String deviceModel, String brand, String deviceName, String deviceSource,
+        boolean bound, Long boundUserId, String boundUserName, String boundUserPhone,
         Instant createdAt, Instant updatedAt
     ) {
     }
 
     public record DeviceCreateRequest(
-        @NotBlank @Size(max = 100) String deviceModel
+        @NotBlank @Size(max = 100) String deviceModel,
+        @NotBlank(message = "请选择设备品牌")
+        @Pattern(regexp = "(?i)(manhart|ARVELLO)", message = "设备品牌只能选择 Manhart 或 ARVELLO") String brand
+    ) {
+    }
+
+    public record DeviceBatchCreateRequest(
+        @NotBlank @Size(max = 100) String deviceModel,
+        @NotBlank(message = "请选择设备品牌")
+        @Pattern(regexp = "(?i)(manhart|ARVELLO)", message = "设备品牌只能选择 Manhart 或 ARVELLO") String brand,
+        @Min(value = 1, message = "批量新增数量不能少于 1")
+        @Max(value = 100, message = "单次最多批量新增 100 台设备") int quantity
+    ) {
+    }
+
+    public record DeviceBatchCreateResult(
+        int count, String firstSerialNumber, String lastSerialNumber
+    ) {
+    }
+
+    public record DeviceExportRequest(
+        @NotEmpty(message = "请至少选择一台设备")
+        @Size(max = 100, message = "单次最多导出 100 台设备") List<@NotNull Long> deviceIds
     ) {
     }
 
     public record GeneratedDevice(
-        String serialNumber, String qrToken, String deviceModel
+        String serialNumber, String qrToken, String deviceModel, String brand
     ) {
     }
 

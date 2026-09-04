@@ -5,6 +5,7 @@ import com.qinglian.fitness.common.ApiException;
 import com.qinglian.fitness.device.DeviceDtos.BindRequest;
 import com.qinglian.fitness.device.DeviceDtos.BindResult;
 import com.qinglian.fitness.device.DeviceDtos.BoundDevice;
+import com.qinglian.fitness.device.DeviceDtos.ThirdPartyDeviceRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,12 @@ public class DeviceController {
             case ALREADY_BOUND -> throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_BOUND", "该设备已绑定其他账号");
             case INVALID -> throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BINDING_INVALID", "请输入设备 SN 码");
         };
+    }
+
+    @PostMapping("/third-party")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BoundDevice createThirdParty(HttpServletRequest request, @Valid @RequestBody ThirdPartyDeviceRequest body) {
+        return repository.createAndBindThirdParty(CurrentUser.id(request), body.deviceName(), body.deviceModel());
     }
 
     @DeleteMapping("/current")

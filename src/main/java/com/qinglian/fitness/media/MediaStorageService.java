@@ -25,15 +25,22 @@ public class MediaStorageService {
 
     private static final Map<String, Set<String>> ALLOWED_TYPES = Map.of(
         "image", Set.of("image/jpeg", "image/png", "image/webp"),
-        "video", Set.of("video/mp4", "video/webm", "video/quicktime")
+        "video", Set.of("video/mp4", "video/webm", "video/quicktime"),
+        "audio", Set.of("audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/x-wav", "audio/ogg")
     );
-    private static final Map<String, String> EXTENSIONS = Map.of(
-        "image/jpeg", ".jpg",
-        "image/png", ".png",
-        "image/webp", ".webp",
-        "video/mp4", ".mp4",
-        "video/webm", ".webm",
-        "video/quicktime", ".mov"
+    private static final Map<String, String> EXTENSIONS = Map.ofEntries(
+        Map.entry("image/jpeg", ".jpg"),
+        Map.entry("image/png", ".png"),
+        Map.entry("image/webp", ".webp"),
+        Map.entry("video/mp4", ".mp4"),
+        Map.entry("video/webm", ".webm"),
+        Map.entry("video/quicktime", ".mov"),
+        Map.entry("audio/mpeg", ".mp3"),
+        Map.entry("audio/mp4", ".m4a"),
+        Map.entry("audio/x-m4a", ".m4a"),
+        Map.entry("audio/wav", ".wav"),
+        Map.entry("audio/x-wav", ".wav"),
+        Map.entry("audio/ogg", ".ogg")
     );
 
     private final Path root;

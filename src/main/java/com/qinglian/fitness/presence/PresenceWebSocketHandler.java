@@ -1,5 +1,7 @@
 package com.qinglian.fitness.presence;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -9,6 +11,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Component
 public class PresenceWebSocketHandler extends TextWebSocketHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(PresenceWebSocketHandler.class);
     private final PresenceService presenceService;
 
     public PresenceWebSocketHandler(PresenceService presenceService) {
@@ -17,7 +20,10 @@ public class PresenceWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        presenceService.connected(userId(session), session.getId());
+        long userId = userId(session);
+        presenceService.connected(userId, session.getId());
+        log.info("Presence WebSocket connected: userId={}, sessionId={}, remote={}",
+            userId, session.getId(), session.getRemoteAddress());
         session.sendMessage(new TextMessage("connected"));
     }
 
@@ -30,12 +36,18 @@ public class PresenceWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        presenceService.disconnected(userId(session), session.getId());
+        long userId = userId(session);
+        presenceService.disconnected(userId, session.getId());
+        log.info("Presence WebSocket closed: userId={}, sessionId={}, code={}, reason={}",
+            userId, session.getId(), status.getCode(), status.getReason());
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-        presenceService.disconnected(userId(session), session.getId());
+        long userId = userId(session);
+        presenceService.disconnected(userId, session.getId());
+        log.warn("Presence WebSocket transport error: userId={}, sessionId={}, error={}",
+            userId, session.getId(), exception.getMessage());
         if (session.isOpen()) {
             session.close(CloseStatus.SERVER_ERROR);
         }

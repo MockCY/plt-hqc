@@ -15,9 +15,18 @@ public final class DeviceDtos {
 
     public record BoundDevice(
         long id,
+        String deviceName,
         String deviceModel,
+        String brand,
+        String deviceSource,
         String serialNumber,
         LocalDateTime boundAt
+    ) {
+    }
+
+    public record ThirdPartyDeviceRequest(
+        @NotBlank(message = "请输入设备名称") @Size(max = 100, message = "设备名称不能超过100个字符") String deviceName,
+        @NotBlank(message = "请输入设备型号") @Size(max = 100, message = "设备型号不能超过100个字符") String deviceModel
     ) {
     }
 

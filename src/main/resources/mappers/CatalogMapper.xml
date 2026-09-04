@@ -37,6 +37,7 @@
             <arg column="video_url" javaType="java.lang.String"/>
             <arg column="video_cover_image" javaType="java.lang.String"/>
             <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
+            <arg column="background_music_url" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
@@ -69,6 +70,7 @@
             <arg column="video_url" javaType="java.lang.String"/>
             <arg column="video_cover_image" javaType="java.lang.String"/>
             <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
+            <arg column="background_music_url" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
@@ -94,7 +96,7 @@
 
     <select id="findExercises" resultMap="exerciseResultMap">
         select id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
-               cover_image, video_url, video_cover_image, video_duration_seconds
+               cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url
         from exercises
         where status = 'PUBLISHED'
         <if test="bodyPart != null">
@@ -117,7 +119,7 @@
     <select id="findCourseExercises" resultMap="courseExerciseResultMap">
         select e.id, e.name, coalesce(ce.target, e.target) target, e.cue, e.safety_tip,
                coalesce(ce.duration_seconds, 60) duration_seconds,
-               e.cover_image, e.video_url, e.video_cover_image, e.video_duration_seconds
+               e.cover_image, e.video_url, e.video_cover_image, e.video_duration_seconds, e.background_music_url
         from course_exercises ce
         join exercises e on e.id = ce.exercise_id
         where ce.course_id = #{courseId} and e.status = 'PUBLISHED'

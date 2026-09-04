@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS exercises (
     video_url VARCHAR(500) NULL,
     video_cover_image VARCHAR(500) NULL,
     video_duration_seconds INT NULL,
+    background_music_url VARCHAR(500) NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -241,14 +242,21 @@ CREATE TABLE IF NOT EXISTS devices (
     serial_number VARCHAR(64) NOT NULL,
     qr_token VARCHAR(64) NOT NULL,
     device_model VARCHAR(100) NOT NULL,
+    brand VARCHAR(32) NULL,
+    device_name VARCHAR(100) NULL,
+    device_source VARCHAR(20) NOT NULL DEFAULT 'OWN',
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     UNIQUE KEY uk_devices_serial_number (serial_number),
     UNIQUE KEY uk_devices_qr_token (qr_token),
     KEY idx_devices_device_model (device_model),
-    CONSTRAINT fk_devices_device_model FOREIGN KEY (device_model) REFERENCES device_models(name)
-        ON UPDATE CASCADE ON DELETE RESTRICT
+    KEY idx_devices_source (device_source),
+    KEY idx_devices_brand (brand),
+    CONSTRAINT chk_devices_brand_source CHECK (
+        (device_source = 'OWN' AND brand IN ('Manhart', 'ARVELLO'))
+        OR (device_source = 'THIRD_PARTY' AND brand IS NULL)
+    )
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS user_device_selections (
