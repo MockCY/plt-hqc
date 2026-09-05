@@ -22,6 +22,17 @@
 
     <sql id="deviceColumns">id, device_model</sql>
 
+    <select id="lockUser" resultType="java.lang.Long">
+        select id from users where id = #{userId} for update
+    </select>
+    <update id="recordBound">
+        update devices set last_bound_at = #{boundAt} where id = #{deviceId}
+    </update>
+    <update id="recordUnbound">
+        update devices set last_bound_at = #{boundAt}, last_unbound_at = current_timestamp(3)
+        where id = #{deviceId}
+    </update>
+
     <select id="findCurrent" resultMap="boundDeviceResultMap">
         select d.id, coalesce(d.device_name, d.device_model) device_name, d.device_model,
                d.brand, d.device_source, d.serial_number, uds.selected_at as bound_at
@@ -45,7 +56,7 @@
     </select>
 
     <update id="updateSelection">
-        update user_device_selections set device_id = #{deviceId}, selected_at = current_timestamp where user_id = #{userId}
+        update user_device_selections set device_id = #{deviceId}, selected_at = current_timestamp(3) where user_id = #{userId}
     </update>
 
     <insert id="createSelection">

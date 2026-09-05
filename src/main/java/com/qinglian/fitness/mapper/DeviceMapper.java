@@ -6,9 +6,13 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Mapper
 public interface DeviceMapper {
+    Long lockUser(@Param("userId") long userId);
+    int recordBound(@Param("deviceId") long deviceId, @Param("boundAt") LocalDateTime boundAt);
+    int recordUnbound(@Param("deviceId") long deviceId, @Param("boundAt") LocalDateTime boundAt);
     BoundDevice findCurrent(@Param("userId") long userId);
     DeviceView findBySerialNumber(@Param("serialNumber") String serialNumber);
     int insertThirdPartyDevice(

@@ -36,7 +36,8 @@ public class CatalogRepository {
         return Optional.of(new CourseDetailView(
             row.id(), row.title(), row.type(), row.durationMinutes(), row.level(),
             row.equipment(), row.summary(), row.coverImage(), row.videoUrl(), row.videoCoverImage(),
-            row.videoDurationSeconds(), row.viewCount(), catalogMapper.findCourseExercises(row.id())
+            row.videoDurationSeconds(), row.viewCount(), catalogMapper.findCourseExercises(row.id()),
+            row.introduction(), row.audience()
         ));
     }
 

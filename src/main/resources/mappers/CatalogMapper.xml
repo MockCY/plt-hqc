@@ -38,6 +38,12 @@
             <arg column="video_cover_image" javaType="java.lang.String"/>
             <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
             <arg column="background_music_url" javaType="java.lang.String"/>
+            <arg column="focus_image_url" javaType="java.lang.String"/>
+            <arg column="focus_parts" javaType="java.lang.String"/>
+            <arg column="spring_sets" javaType="java.util.List" typeHandler="com.qinglian.fitness.mapper.IntegerListTypeHandler"/>
+            <arg column="key_points" javaType="java.lang.String"/>
+            <arg column="common_mistakes" javaType="java.lang.String"/>
+            <arg column="instruction_audio_url" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
@@ -55,6 +61,8 @@
             <arg column="video_cover_image" javaType="java.lang.String"/>
             <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
             <arg column="view_count" javaType="_long"/>
+            <arg column="introduction" javaType="java.lang.String"/>
+            <arg column="audience" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
@@ -71,6 +79,8 @@
             <arg column="video_cover_image" javaType="java.lang.String"/>
             <arg column="video_duration_seconds" javaType="java.lang.Integer"/>
             <arg column="background_music_url" javaType="java.lang.String"/>
+            <arg column="instruction_audio_url" javaType="java.lang.String"/>
+            <arg column="training_sets" javaType="java.util.List" typeHandler="com.qinglian.fitness.mapper.TrainingSetListTypeHandler"/>
         </constructor>
     </resultMap>
 
@@ -96,7 +106,8 @@
 
     <select id="findExercises" resultMap="exerciseResultMap">
         select id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
-               cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url
+               cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url,
+               focus_image_url, focus_parts, spring_sets, key_points, common_mistakes, instruction_audio_url
         from exercises
         where status = 'PUBLISHED'
         <if test="bodyPart != null">
@@ -111,7 +122,7 @@
 
     <select id="findCourse" resultMap="courseDetailResultMap">
         select id, title, type, duration_minutes, level, equipment, summary, cover_image,
-               video_url, video_cover_image, video_duration_seconds, view_count
+               video_url, video_cover_image, video_duration_seconds, view_count, introduction, audience
         from courses
         where id = #{id} and status = 'PUBLISHED'
     </select>
@@ -119,7 +130,9 @@
     <select id="findCourseExercises" resultMap="courseExerciseResultMap">
         select e.id, e.name, coalesce(ce.target, e.target) target, e.cue, e.safety_tip,
                coalesce(ce.duration_seconds, 60) duration_seconds,
-               e.cover_image, e.video_url, e.video_cover_image, e.video_duration_seconds, e.background_music_url
+               e.cover_image, e.video_url, e.video_cover_image, e.video_duration_seconds, e.background_music_url,
+               e.instruction_audio_url, coalesce(ce.training_sets, json_array(json_object(
+                   'side', '双侧', 'durationSeconds', coalesce(ce.duration_seconds, 60), 'repetitions', 0, 'springCount', 0))) training_sets
         from course_exercises ce
         join exercises e on e.id = ce.exercise_id
         where ce.course_id = #{courseId} and e.status = 'PUBLISHED'

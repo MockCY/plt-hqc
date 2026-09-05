@@ -29,13 +29,27 @@ public interface AdminMapper {
 
     List<RecentContent> findRecentContent(@Param("limit") int limit);
 
-    long countUsersFiltered(@Param("query") String query);
+    long countUsersFiltered(@Param("query") String query, @Param("online") Boolean online, @Param("cutoff") Instant cutoff);
 
     List<UserRow> findUsers(
         @Param("query") String query,
+        @Param("online") Boolean online,
+        @Param("cutoff") Instant cutoff,
         @Param("limit") int limit,
         @Param("offset") int offset
     );
+
+    UserRow findUser(@Param("id") long id);
+
+    long countUsersByPhoneExcept(@Param("phone") String phone, @Param("id") long id);
+
+    int updateUser(
+        @Param("id") long id,
+        @Param("phone") String phone,
+        @Param("status") String status
+    );
+
+    int revokeUserSessions(@Param("userId") long userId, @Param("now") Instant now);
 
     long countCoursesFiltered(@Param("query") String query, @Param("status") String status);
 
@@ -50,6 +64,8 @@ public interface AdminMapper {
 
     List<Long> findCourseExerciseIds(@Param("courseId") long courseId);
 
+    List<CourseExerciseRequest> findCourseExerciseSettings(@Param("courseId") long courseId);
+
     int insertCourse(InsertCommand<CourseRequest> command);
 
     int updateCourse(@Param("id") long id, @Param("request") CourseRequest request);
@@ -61,7 +77,8 @@ public interface AdminMapper {
     int insertCourseExercise(
         @Param("courseId") long courseId,
         @Param("exerciseId") long exerciseId,
-        @Param("sortOrder") int sortOrder
+        @Param("sortOrder") int sortOrder,
+        @Param("sets") List<com.qinglian.fitness.catalog.TrainingSet> sets
     );
 
     long countExercisesFiltered(@Param("query") String query, @Param("status") String status);
@@ -199,7 +216,7 @@ public interface AdminMapper {
         long id, String title, String type, int durationMinutes, String level, String equipment,
         String summary, String coverImage, String videoUrl, String videoCoverImage,
         Integer videoDurationSeconds, long viewCount, String status, int sortOrder,
-        Instant createdAt, Instant updatedAt
+        Instant createdAt, Instant updatedAt, String introduction, String audience
     ) {
     }
 

@@ -38,7 +38,13 @@ public final class CatalogDtos {
         String videoUrl,
         String videoCoverImage,
         Integer videoDurationSeconds,
-        String backgroundMusicUrl
+        String backgroundMusicUrl,
+        String focusImageUrl,
+        String focusParts,
+        List<Integer> springSets,
+        String keyPoints,
+        String commonMistakes,
+        String instructionAudioUrl
     ) {
     }
 
@@ -53,7 +59,9 @@ public final class CatalogDtos {
         String videoUrl,
         String videoCoverImage,
         Integer videoDurationSeconds,
-        String backgroundMusicUrl
+        String backgroundMusicUrl,
+        String instructionAudioUrl,
+        List<TrainingSet> sets
     ) {
     }
 
@@ -70,7 +78,9 @@ public final class CatalogDtos {
         String videoCoverImage,
         Integer videoDurationSeconds,
         long viewCount,
-        List<CourseExerciseView> exercises
+        List<CourseExerciseView> exercises,
+        String introduction,
+        String audience
     ) {
     }
 }

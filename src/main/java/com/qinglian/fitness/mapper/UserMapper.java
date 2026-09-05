@@ -15,6 +15,8 @@ public interface UserMapper {
 
     int insert(UserInsert user);
 
+    long countByPhoneExcept(@Param("phone") String phone, @Param("userId") long userId);
+
     int bindPhone(
         @Param("userId") long userId,
         @Param("phone") String phone,
@@ -38,4 +40,5 @@ public interface UserMapper {
     int deleteSessions(@Param("userId") long userId);
 
     int deleteById(@Param("userId") long userId);
+    int recordDeviceUnbinding(@Param("userId") long userId);
 }

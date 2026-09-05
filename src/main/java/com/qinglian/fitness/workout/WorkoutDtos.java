@@ -2,12 +2,18 @@ package com.qinglian.fitness.workout;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 
 public final class WorkoutDtos {
 
     private WorkoutDtos() {
+    }
+
+    public enum DetailType { EXERCISE, COURSE, PLAN }
+
+    public record DetailVisitRequest(@NotNull DetailType detailType, @NotNull @Min(1) Long itemId) {
     }
 
     public record CreateWorkoutRequest(

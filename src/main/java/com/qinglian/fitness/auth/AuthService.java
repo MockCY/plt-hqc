@@ -2,8 +2,10 @@ package com.qinglian.fitness.auth;
 
 import com.qinglian.fitness.auth.AuthDtos.LoginResponse;
 import com.qinglian.fitness.auth.AuthDtos.UserView;
+import com.qinglian.fitness.common.ApiException;
 import com.qinglian.fitness.user.User;
 import com.qinglian.fitness.user.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,7 @@ public class AuthService {
     public LoginResponse login(String loginCode) {
         WechatIdentity identity = wechatGateway.exchangeLoginCode(loginCode);
         User user = userRepository.findOrCreate(identity.openId(), identity.unionId());
+        ensureActive(user);
         return loginResponse(user);
     }
 
@@ -36,6 +39,7 @@ public class AuthService {
         WechatIdentity identity = wechatGateway.exchangeLoginCode(loginCode);
         WechatPhone phone = wechatGateway.exchangePhoneCode(phoneCode);
         User user = userRepository.findOrCreate(identity.openId(), identity.unionId());
+        ensureActive(user);
         user = userRepository.bindPhone(user.id(), phone.purePhoneNumber(), phone.countryCode());
         return loginResponse(user);
     }
@@ -43,5 +47,11 @@ public class AuthService {
     private LoginResponse loginResponse(User user) {
         SessionService.CreatedSession session = sessionService.create(user.id());
         return new LoginResponse(session.token(), session.expiresAt(), UserView.from(user));
+    }
+
+    private void ensureActive(User user) {
+        if (!"ACTIVE".equals(user.status())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ACCOUNT_UNAVAILABLE", "账号不可用，请联系管理员");
+        }
     }
 }

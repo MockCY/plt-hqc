@@ -66,10 +66,33 @@ public class AdminController {
     @GetMapping("/users")
     public PageResult<UserRow> users(
         @RequestParam(required = false) String query,
+        @RequestParam(required = false) String presence,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "20") int pageSize
     ) {
-        return repository.users(query, page, pageSize);
+        return repository.users(query, presence, page, pageSize);
+    }
+
+    @GetMapping("/users/{id}/presence")
+    public PageResult<com.qinglian.fitness.presence.PresenceMapper.Visit> presenceHistory(
+        @PathVariable long id,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return repository.presenceHistory(id, page, pageSize);
+    }
+
+    @PutMapping("/users/{id}")
+    public UserRow updateUser(
+        @PathVariable long id,
+        @Valid @RequestBody UserUpdateRequest body,
+        HttpServletRequest request
+    ) {
+        UserRow updated = repository.updateUser(id, body);
+        audit(request, "UPDATE", "USER", id,
+            "更新用户：" + displayUser(updated) + "，手机号：" + (updated.phone() == null ? "未绑定" : updated.phone())
+                + "，状态：" + updated.status());
+        return updated;
     }
 
     @GetMapping("/courses")
@@ -390,6 +413,12 @@ public class AdminController {
 
     private void audit(HttpServletRequest request, String action, String target, Long targetId, String summary) {
         authService.audit(AdminCurrent.id(request), action, target, targetId, summary, ip(request));
+    }
+
+    private String displayUser(UserRow user) {
+        return user.nickname() == null || user.nickname().isBlank()
+            ? "用户 #" + user.id()
+            : user.nickname();
     }
 
     private String ip(HttpServletRequest request) {

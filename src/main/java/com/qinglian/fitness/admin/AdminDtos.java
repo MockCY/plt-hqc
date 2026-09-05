@@ -1,5 +1,7 @@
 package com.qinglian.fitness.admin;
 
+import com.qinglian.fitness.catalog.TrainingSet;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -49,7 +51,22 @@ public final class AdminDtos {
 
     public record UserRow(
         long id, String nickname, String phone, String avatarUrl, String status,
-        long workoutCount, long totalMinutes, Instant createdAt, Instant updatedAt
+        long workoutCount, long totalMinutes, Instant createdAt, Instant updatedAt,
+        com.qinglian.fitness.presence.PresenceMapper.Summary presence
+    ) {
+        public UserRow(long id, String nickname, String phone, String avatarUrl, String status,
+                       long workoutCount, long totalMinutes, Instant createdAt, Instant updatedAt) {
+            this(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, createdAt, updatedAt, null);
+        }
+
+        public UserRow withPresence(com.qinglian.fitness.presence.PresenceMapper.Summary summary) {
+            return new UserRow(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, createdAt, updatedAt, summary);
+        }
+    }
+
+    public record UserUpdateRequest(
+        @Size(max = 32) String phone,
+        @NotBlank String status
     ) {
     }
 
@@ -57,7 +74,8 @@ public final class AdminDtos {
         long id, String title, String type, int durationMinutes, String level, String equipment,
         String summary, String coverImage, String videoUrl, String videoCoverImage,
         Integer videoDurationSeconds, long viewCount, String status, int sortOrder,
-        List<Long> exerciseIds, Instant createdAt, Instant updatedAt
+        List<Long> exerciseIds, Instant createdAt, Instant updatedAt,
+        String introduction, String audience, List<CourseExerciseRequest> exercises
     ) {
     }
 
@@ -74,14 +92,25 @@ public final class AdminDtos {
         @Min(0) Integer videoDurationSeconds,
         @NotBlank String status,
         int sortOrder,
-        List<Long> exerciseIds
+        List<@NotNull Long> exerciseIds,
+        @Size(max = 5000) String introduction,
+        @Size(max = 2000) String audience,
+        @Size(max = 100) List<@NotNull @Valid CourseExerciseRequest> exercises
+    ) {
+    }
+
+    public record CourseExerciseRequest(
+        @Min(1) long exerciseId,
+        @NotEmpty @Size(max = 50) List<@NotNull @Valid TrainingSet> sets
     ) {
     }
 
     public record ExerciseRow(
         long id, String name, String bodyPart, String level, String equipment, int suggestedSets,
         String target, String cue, String safetyTip, String coverImage, String videoUrl,
-        String videoCoverImage, Integer videoDurationSeconds, String backgroundMusicUrl, String status, int sortOrder,
+        String videoCoverImage, Integer videoDurationSeconds, String backgroundMusicUrl,
+        String focusImageUrl, String focusParts, List<Integer> springSets, String keyPoints, String commonMistakes, String instructionAudioUrl,
+        String status, int sortOrder,
         Instant createdAt, Instant updatedAt
     ) {
     }
@@ -92,7 +121,7 @@ public final class AdminDtos {
         @NotBlank @Size(max = 30) String level,
         @NotBlank @Size(max = 80) String equipment,
         @Min(1) @Max(20) int suggestedSets,
-        @NotBlank @Size(max = 40) String target,
+        @Size(max = 40) String target,
         @NotBlank @Size(max = 500) String cue,
         @NotBlank @Size(max = 500) String safetyTip,
         @Size(max = 500) String coverImage,
@@ -100,6 +129,12 @@ public final class AdminDtos {
         @Size(max = 500) String videoCoverImage,
         @Min(0) Integer videoDurationSeconds,
         @Size(max = 500) String backgroundMusicUrl,
+        @Size(max = 500) String focusImageUrl,
+        @Size(max = 100) String focusParts,
+        @Size(max = 20) List<@Min(1) @Max(20) Integer> springSets,
+        @Size(max = 2000) String keyPoints,
+        @Size(max = 2000) String commonMistakes,
+        @Size(max = 500) String instructionAudioUrl,
         @NotBlank String status,
         int sortOrder
     ) {
@@ -169,13 +204,14 @@ public final class AdminDtos {
     }
 
     public record DeviceModelRow(
-        long id, String name, String snPrefix, long deviceCount,
+        long id, String name, String brand, String snPrefix, long deviceCount,
         Instant createdAt, Instant updatedAt
     ) {
     }
 
     public record DeviceModelRequest(
         @NotBlank @Size(max = 100) String name,
+        @NotBlank @Pattern(regexp = "(?i)(manhart|ARVELLO)") String brand,
         @NotBlank @Size(min = 2, max = 12)
         @Pattern(regexp = "[A-Za-z0-9]+", message = "SN 前缀只能包含字母和数字") String snPrefix
     ) {
@@ -184,7 +220,7 @@ public final class AdminDtos {
     public record DeviceRow(
         long id, String serialNumber, String deviceModel, String brand, String deviceName, String deviceSource,
         boolean bound, Long boundUserId, String boundUserName, String boundUserPhone,
-        Instant createdAt, Instant updatedAt
+        Instant createdAt, Instant updatedAt, Instant boundAt, Instant unboundAt
     ) {
     }
 

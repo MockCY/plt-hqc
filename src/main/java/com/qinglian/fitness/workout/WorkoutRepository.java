@@ -59,6 +59,10 @@ public class WorkoutRepository {
         return new WorkoutStats(base.completedCount(), base.totalMinutes(), consecutiveDays(dates));
     }
 
+    public void recordDetailVisit(long userId, WorkoutDtos.DetailVisitRequest visit) {
+        workoutMapper.recordDetailVisit(userId, visit.detailType().name(), visit.itemId());
+    }
+
     private WorkoutView required(WorkoutView workout) {
         if (workout == null) {
             throw new IllegalStateException("Workout was not found after creation");

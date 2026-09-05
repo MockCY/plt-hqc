@@ -35,7 +35,9 @@ public interface CatalogMapper {
         String videoUrl,
         String videoCoverImage,
         Integer videoDurationSeconds,
-        long viewCount
+        long viewCount,
+        String introduction,
+        String audience
     ) {
     }
 }

@@ -59,11 +59,56 @@ public class AdminRepository {
         );
     }
 
-    public PageResult<UserRow> users(String query, int page, int pageSize) {
+    public PageResult<UserRow> users(String query, String presence, int page, int pageSize) {
         Paging paging = paging(page, pageSize);
         String filter = normalizeQuery(query);
-        return new PageResult<>(mapper.findUsers(filter, paging.pageSize(), paging.offset()),
-            mapper.countUsersFiltered(filter), paging.page(), paging.pageSize());
+        Boolean online = switch (presence == null ? "ALL" : presence) {
+            case "ALL" -> null;
+            case "ONLINE" -> true;
+            case "OFFLINE" -> false;
+            default -> throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PRESENCE", "在线状态无效");
+        };
+        Instant cutoff = Instant.now().minusSeconds(PresenceService.TIMEOUT_SECONDS);
+        List<UserRow> users = mapper.findUsers(filter, online, cutoff, paging.pageSize(), paging.offset());
+        Map<Long, com.qinglian.fitness.presence.PresenceMapper.Summary> summaries = new LinkedHashMap<>();
+        presenceService.summaries(users.stream().map(UserRow::id).toList()).forEach(item -> summaries.put(item.userId(), item));
+        List<UserRow> rows = users.stream().map(row -> row.withPresence(summaries.getOrDefault(row.id(),
+            new com.qinglian.fitness.presence.PresenceMapper.Summary(row.id(), false, null, null)))).toList();
+        return new PageResult<>(rows, mapper.countUsersFiltered(filter, online, cutoff), paging.page(), paging.pageSize());
+    }
+
+    public PageResult<com.qinglian.fitness.presence.PresenceMapper.Visit> presenceHistory(long id, int page, int pageSize) {
+        user(id);
+        Paging paging = paging(page, pageSize);
+        return new PageResult<>(presenceService.history(id, paging.pageSize(), paging.offset()),
+            presenceService.historyCount(id), paging.page(), paging.pageSize());
+    }
+
+    public UserRow user(long id) {
+        UserRow row = mapper.findUser(id);
+        if (row == null) throw notFound("USER_NOT_FOUND", "用户不存在");
+        return row;
+    }
+
+    @Transactional
+    public UserRow updateUser(long id, UserUpdateRequest request) {
+        user(id);
+        String status = normalizeUserStatus(request.status());
+        String phone = normalizePhone(request.phone());
+        if (phone != null && mapper.countUsersByPhoneExcept(phone, id) > 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "USER_PHONE_ALREADY_BOUND", "该手机号已绑定其他账号");
+        }
+        try {
+            if (mapper.updateUser(id, phone, status) == 0) {
+                throw notFound("USER_NOT_FOUND", "用户不存在");
+            }
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, "USER_PHONE_ALREADY_BOUND", "该手机号已绑定其他账号");
+        }
+        if (!"ACTIVE".equals(status)) {
+            mapper.revokeUserSessions(id, Instant.now());
+        }
+        return user(id);
     }
 
     public PageResult<CourseRow> courses(String query, String status, int page, int pageSize) {
@@ -88,7 +133,7 @@ public class AdminRepository {
         InsertCommand<CourseRequest> command = new InsertCommand<>(request);
         mapper.insertCourse(command);
         long id = generatedId(command);
-        replaceCourseExercises(id, request.exerciseIds());
+        replaceCourseExercises(id, request.exerciseIds(), request.exercises());
         return course(id);
     }
 
@@ -97,7 +142,7 @@ public class AdminRepository {
         course(id);
         validateContentStatus(request.status());
         mapper.updateCourse(id, request);
-        replaceCourseExercises(id, request.exerciseIds());
+        replaceCourseExercises(id, request.exerciseIds(), request.exercises());
         return course(id);
     }
 
@@ -267,6 +312,7 @@ public class AdminRepository {
     }
 
     public DeviceModelRow createDeviceModel(DeviceModelRequest request) {
+        request = validateDeviceModel(request);
         InsertCommand<DeviceModelRequest> command = new InsertCommand<>(request);
         try {
             mapper.insertDeviceModel(command);
@@ -277,7 +323,11 @@ public class AdminRepository {
     }
 
     public DeviceModelRow updateDeviceModel(long id, DeviceModelRequest request) {
-        deviceModel(id);
+        DeviceModelRow existing = deviceModel(id);
+        request = validateDeviceModel(request);
+        if (existing.deviceCount() > 0 && !existing.brand().equals(request.brand())) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_MODEL_IN_USE", "该型号已有设备，不能更换品牌，请新增型号");
+        }
         try {
             mapper.updateDeviceModel(id, request);
         } catch (DataIntegrityViolationException exception) {
@@ -338,7 +388,7 @@ public class AdminRepository {
 
     @Transactional
     public DeviceRow createDevice(DeviceCreateRequest request) {
-        DeviceModelRow model = requireDeviceModel(request.deviceModel());
+        DeviceModelRow model = requireDeviceModel(request.deviceModel(), request.brand());
         long sequence = mapper.lockDeviceSerialSequence(model.id()) + 1;
         if (sequence > DeviceSerialNumber.MAX_SEQUENCE) {
             throw new ApiException(HttpStatus.CONFLICT, "DEVICE_SN_EXHAUSTED", "该型号的设备流水号已用完");
@@ -357,7 +407,7 @@ public class AdminRepository {
 
     @Transactional
     public DeviceBatchCreateResult createDevices(DeviceBatchCreateRequest request) {
-        DeviceModelRow model = requireDeviceModel(request.deviceModel());
+        DeviceModelRow model = requireDeviceModel(request.deviceModel(), request.brand());
         long currentSequence = mapper.lockDeviceSerialSequence(model.id());
         if (currentSequence > DeviceSerialNumber.MAX_SEQUENCE - request.quantity()) {
             throw new ApiException(HttpStatus.CONFLICT, "DEVICE_SN_EXHAUSTED", "该型号剩余的设备流水号不足");
@@ -399,7 +449,7 @@ public class AdminRepository {
         return new CourseRow(row.id(), row.title(), row.type(), row.durationMinutes(), row.level(), row.equipment(),
             row.summary(), row.coverImage(), row.videoUrl(), row.videoCoverImage(), row.videoDurationSeconds(),
             row.viewCount(), row.status(), row.sortOrder(), mapper.findCourseExerciseIds(row.id()),
-            row.createdAt(), row.updatedAt());
+            row.createdAt(), row.updatedAt(), row.introduction(), row.audience(), mapper.findCourseExerciseSettings(row.id()));
     }
 
     private PlanRow toPlanRow(PlanData row) {
@@ -409,12 +459,23 @@ public class AdminRepository {
             row.active(), row.sortOrder(), mapper.findPlanItems(row.id()), row.createdAt(), row.updatedAt());
     }
 
-    private void replaceCourseExercises(long courseId, List<Long> exerciseIds) {
+    private void replaceCourseExercises(long courseId, List<Long> exerciseIds, List<CourseExerciseRequest> exercises) {
+        // Preserve per-set settings when an older client sends only exercise IDs.
+        var existing = mapper.findCourseExerciseSettings(courseId);
+        List<CourseExerciseRequest> items = exercises != null ? exercises :
+            (exerciseIds == null ? List.of() : exerciseIds.stream().distinct().map(id -> existing.stream()
+                .filter(item -> item.exerciseId() == id).findFirst()
+                .orElse(new CourseExerciseRequest(id, List.of(new com.qinglian.fitness.catalog.TrainingSet("双侧", 60, 0, 0)))))
+                .toList());
+        var seen = new java.util.HashSet<Long>();
+        for (var item : items) {
+            if (!seen.add(item.exerciseId())) throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_EXERCISE_DUPLICATE", "课程中不能重复添加同一动作");
+            if (mapper.findExercise(item.exerciseId()) == null) throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_EXERCISE_NOT_FOUND", "所选动作不存在");
+        }
         mapper.deleteCourseExercises(courseId);
-        if (exerciseIds == null) return;
         int order = 10;
-        for (Long exerciseId : exerciseIds.stream().filter(java.util.Objects::nonNull).distinct().toList()) {
-            mapper.insertCourseExercise(courseId, exerciseId, order);
+        for (var item : items) {
+            mapper.insertCourseExercise(courseId, item.exerciseId(), order, item.sets());
             order += 10;
         }
     }
@@ -429,6 +490,23 @@ public class AdminRepository {
         if (!List.of("DRAFT", "PUBLISHED", "ARCHIVED").contains(status)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "STATUS_INVALID", "内容状态不正确");
         }
+    }
+
+    private String normalizeUserStatus(String status) {
+        String normalized = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+        if (!List.of("ACTIVE", "INACTIVE").contains(normalized)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "USER_STATUS_INVALID", "用户状态不正确");
+        }
+        return normalized;
+    }
+
+    private String normalizePhone(String phone) {
+        if (phone == null || phone.isBlank()) return null;
+        String normalized = phone.trim().replaceAll("[\\s-]", "");
+        if (!normalized.matches("\\d{6,20}")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "USER_PHONE_INVALID", "手机号只能包含 6 至 20 位数字");
+        }
+        return normalized;
     }
 
     private void validateDates(LocalDate start, LocalDate end) {
@@ -480,14 +558,29 @@ public class AdminRepository {
         if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) return null;
         if ("BOUND".equalsIgnoreCase(value.trim())) return "BOUND";
         if ("UNBOUND".equalsIgnoreCase(value.trim())) return "UNBOUND";
+        if ("RELEASED".equalsIgnoreCase(value.trim())) return "RELEASED";
         throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_BINDING_FILTER_INVALID", "设备绑定状态筛选条件不正确");
     }
 
-    private DeviceModelRow requireDeviceModel(String deviceModel) {
+    private DeviceModelRequest validateDeviceModel(DeviceModelRequest request) {
+        String brand = normalizeBrand(request.brand());
+        String prefix = request.snPrefix().trim().toUpperCase(java.util.Locale.ROOT);
+        String expected = "Manhart".equals(brand) ? "MN" : "AV";
+        if (!prefix.startsWith(expected)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_PREFIX_INVALID", "该品牌的 SN 前缀必须以 " + expected + " 开头");
+        }
+        return new DeviceModelRequest(request.name().trim(), brand, prefix);
+    }
+
+    private DeviceModelRow requireDeviceModel(String deviceModel, String brand) {
         DeviceModelRow row = deviceModel == null ? null : mapper.findDeviceModelByName(deviceModel.trim());
         if (row == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_INVALID", "设备型号不正确");
         }
+        if (!row.brand().equals(normalizeBrand(brand))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_BRAND_MISMATCH", "所选型号不属于该品牌");
+        }
+        validateDeviceModel(new DeviceModelRequest(row.name(), row.brand(), row.snPrefix()));
         return row;
     }
 

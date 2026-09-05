@@ -29,6 +29,7 @@ public class DeviceRepository {
         if (serialNumber == null || serialNumber.isBlank()) {
             return new BindResult(BindStatus.INVALID, null);
         }
+        mapper.lockUser(userId);
         DeviceView device = mapper.findBySerialNumber(serialNumber.trim());
         if (device == null) return new BindResult(BindStatus.NOT_FOUND, null);
 
@@ -37,6 +38,7 @@ public class DeviceRepository {
             return new BindResult(BindStatus.ALREADY_BOUND, null);
         }
 
+        BoundDevice previous = bindingUserId == null ? mapper.findCurrent(userId) : null;
         try {
             if (bindingUserId == null && mapper.updateSelection(userId, device.id()) == 0) {
                 mapper.createSelection(userId, device.id());
@@ -44,7 +46,12 @@ public class DeviceRepository {
         } catch (DataIntegrityViolationException exception) {
             return new BindResult(BindStatus.ALREADY_BOUND, null);
         }
-        return new BindResult(BindStatus.BOUND, mapper.findCurrent(userId));
+        BoundDevice bound = mapper.findCurrent(userId);
+        if (bindingUserId == null) {
+            if (previous != null) mapper.recordUnbound(previous.id(), previous.boundAt());
+            mapper.recordBound(device.id(), bound.boundAt());
+        }
+        return new BindResult(BindStatus.BOUND, bound);
     }
 
     @Transactional
@@ -61,6 +68,10 @@ public class DeviceRepository {
 
     @Transactional
     public boolean unbind(long userId) {
-        return mapper.deleteSelection(userId) > 0;
+        mapper.lockUser(userId);
+        BoundDevice previous = mapper.findCurrent(userId);
+        if (previous == null || mapper.deleteSelection(userId) == 0) return false;
+        mapper.recordUnbound(previous.id(), previous.boundAt());
+        return true;
     }
 }

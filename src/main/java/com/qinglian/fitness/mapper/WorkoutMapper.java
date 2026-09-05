@@ -25,6 +25,9 @@ public interface WorkoutMapper {
 
     StatsBase stats(@Param("userId") long userId);
 
+    int recordDetailVisit(@Param("userId") long userId, @Param("detailType") String detailType,
+                         @Param("itemId") long itemId);
+
     List<LocalDate> completedDates(@Param("userId") long userId);
 
     record StatsBase(long completedCount, long totalMinutes) {

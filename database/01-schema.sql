@@ -1,6 +1,12 @@
 -- 使用服务器上已有的业务数据库，不创建新的数据库。
 USE hqc_plt;
 
+    focus_image_url VARCHAR(500) NULL,
+    focus_parts VARCHAR(100) NULL,
+    spring_sets JSON NULL,
+    key_points TEXT NULL,
+    common_mistakes TEXT NULL,
+    instruction_audio_url VARCHAR(500) NULL,
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     openid VARCHAR(64) NOT NULL,
@@ -14,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     UNIQUE KEY uk_users_openid (openid),
-    KEY idx_users_phone (phone)
+    UNIQUE KEY uk_users_phone (phone)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS auth_sessions (
@@ -41,6 +47,22 @@ CREATE TABLE IF NOT EXISTS daily_online_users (
     CONSTRAINT fk_daily_online_users_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS user_presence_visits (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    client_id VARCHAR(160) NOT NULL,
+    online_at DATETIME(3) NOT NULL,
+    last_seen_at DATETIME(3) NOT NULL,
+    offline_at DATETIME(3) NULL,
+    end_reason VARCHAR(20) NULL,
+    active_client VARCHAR(160) GENERATED ALWAYS AS (IF(offline_at IS NULL, client_id, NULL)) STORED,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_presence_active_client (user_id, active_client),
+    KEY idx_presence_user_history (user_id, online_at, id),
+    KEY idx_presence_expiry (offline_at, last_seen_at),
+    CONSTRAINT fk_presence_visits_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS courses (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     title VARCHAR(80) NOT NULL,
@@ -49,6 +71,8 @@ CREATE TABLE IF NOT EXISTS courses (
     level VARCHAR(30) NOT NULL,
     equipment VARCHAR(80) NOT NULL,
     summary VARCHAR(300) NOT NULL,
+    introduction TEXT NULL,
+    audience TEXT NULL,
     cover_image VARCHAR(500) NULL,
     video_url VARCHAR(500) NULL,
     video_cover_image VARCHAR(500) NULL,
@@ -92,6 +116,7 @@ CREATE TABLE IF NOT EXISTS course_exercises (
     sort_order INT NOT NULL DEFAULT 0,
     duration_seconds INT NULL,
     target VARCHAR(40) NULL,
+    training_sets JSON NULL,
     PRIMARY KEY (course_id, exercise_id),
     CONSTRAINT fk_course_exercises_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     CONSTRAINT fk_course_exercises_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
@@ -228,6 +253,7 @@ CREATE TABLE IF NOT EXISTS user_plan_selections (
 CREATE TABLE IF NOT EXISTS device_models (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
+    brand VARCHAR(30) NOT NULL DEFAULT 'ARVELLO',
     sn_prefix VARCHAR(12) NOT NULL,
     next_serial_sequence BIGINT UNSIGNED NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -245,6 +271,8 @@ CREATE TABLE IF NOT EXISTS devices (
     brand VARCHAR(32) NULL,
     device_name VARCHAR(100) NULL,
     device_source VARCHAR(20) NOT NULL DEFAULT 'OWN',
+    last_bound_at DATETIME(3) NULL,
+    last_unbound_at DATETIME(3) NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
@@ -280,6 +308,19 @@ CREATE TABLE IF NOT EXISTS user_feedback (
     PRIMARY KEY (id),
     KEY idx_user_feedback_user_created (user_id, created_at),
     CONSTRAINT fk_user_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS training_detail_visits (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    detail_type VARCHAR(30) NOT NULL,
+    item_id BIGINT UNSIGNED NOT NULL,
+    legacy_record_id BIGINT UNSIGNED NULL,
+    visited_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_training_visit_legacy (detail_type, legacy_record_id),
+    KEY idx_training_visit_user_date (user_id, visited_at),
+    CONSTRAINT fk_training_visit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS campaign_checkins (

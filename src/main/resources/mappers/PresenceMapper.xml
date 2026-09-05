@@ -4,6 +4,72 @@
     "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.qinglian.fitness.presence.PresenceMapper">
 
+    <resultMap id="summary" type="com.qinglian.fitness.presence.PresenceMapper$Summary">
+        <constructor>
+            <idArg column="user_id" javaType="_long"/>
+            <arg column="online" javaType="_boolean"/>
+            <arg column="last_online_at" javaType="java.time.Instant"/>
+            <arg column="last_offline_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="visit" type="com.qinglian.fitness.presence.PresenceMapper$Visit">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="online_at" javaType="java.time.Instant"/>
+            <arg column="offline_at" javaType="java.time.Instant"/>
+            <arg column="end_reason" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <insert id="touch">
+        insert into user_presence_visits(user_id, client_id, online_at, last_seen_at)
+        select id, #{clientId}, #{now}, #{now} from users where id = #{userId} and status = 'ACTIVE'
+        on duplicate key update last_seen_at = greatest(last_seen_at, values(last_seen_at))
+    </insert>
+    <update id="close">
+        update user_presence_visits
+        set offline_at = least(#{now}, timestampadd(second, #{timeout}, last_seen_at)),
+            end_reason = if(timestampadd(second, #{timeout}, last_seen_at) &lt;= #{now}, 'TIMEOUT', 'CLOSED')
+        where user_id = #{userId} and active_client = #{clientId}
+    </update>
+    <update id="expireClient">
+        update user_presence_visits
+        set offline_at = timestampadd(second, #{timeout}, last_seen_at), end_reason = 'TIMEOUT'
+        where user_id = #{userId} and active_client = #{clientId} and last_seen_at &lt;= #{cutoff}
+    </update>
+    <resultMap id="expiredClient" type="com.qinglian.fitness.presence.PresenceMapper$ExpiredClient">
+        <constructor>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="client_id" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="findExpiredClients" resultMap="expiredClient">
+        select user_id, client_id from user_presence_visits
+        where offline_at is null and last_seen_at &lt;= #{cutoff}
+        order by last_seen_at, id limit #{limit}
+    </select>
+    <select id="countOnline" resultType="long">
+        select count(distinct user_id) from user_presence_visits
+        where offline_at is null and last_seen_at &gt; #{cutoff}
+    </select>
+    <select id="summaries" resultMap="summary">
+        select user_id, max(offline_at is null and last_seen_at &gt; #{cutoff}) online,
+               max(online_at) last_online_at,
+               max(coalesce(offline_at, if(last_seen_at &lt;= #{cutoff}, timestampadd(second, #{timeout}, last_seen_at), null))) last_offline_at
+        from user_presence_visits where user_id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        group by user_id
+    </select>
+    <select id="history" resultMap="visit">
+        select id, online_at,
+               coalesce(offline_at, if(last_seen_at &lt;= #{cutoff}, timestampadd(second, #{timeout}, last_seen_at), null)) offline_at,
+               coalesce(end_reason, if(last_seen_at &lt;= #{cutoff}, 'TIMEOUT', null)) end_reason
+        from user_presence_visits where user_id = #{userId}
+        order by online_at desc, id desc limit #{limit} offset #{offset}
+    </select>
+    <select id="historyCount" resultType="long">
+        select count(*) from user_presence_visits where user_id = #{userId}
+    </select>
+
     <insert id="recordDailyOnline">
         insert ignore into daily_online_users(user_id, online_date, first_seen_at)
         values (#{userId}, #{onlineDate}, #{firstSeenAt})

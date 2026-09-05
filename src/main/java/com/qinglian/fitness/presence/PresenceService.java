@@ -1,82 +1,92 @@
 package com.qinglian.fitness.presence;
 
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.function.Supplier;
 
 @Service
 public class PresenceService {
 
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
-    private static final Duration LEGACY_HEARTBEAT_TIMEOUT = Duration.ofSeconds(75);
+    public static final int TIMEOUT_SECONDS = 75;
+    private static final Logger log = LoggerFactory.getLogger(PresenceService.class);
 
     private final PresenceMapper mapper;
-    private final ConcurrentHashMap<Long, Set<String>> sessionsByUser = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<String, Instant>> legacyHeartbeatsByUser =
-        new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, LocalDate> recordedDatesByUser = new ConcurrentHashMap<>();
+    private final TransactionTemplate writes;
 
-    public PresenceService(PresenceMapper mapper) {
+    public PresenceService(PresenceMapper mapper, PlatformTransactionManager transactionManager) {
         this.mapper = mapper;
+        writes = new TransactionTemplate(transactionManager);
+        writes.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        writes.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
 
-    public void connected(long userId, String sessionId) {
+    public void connected(long userId, String sessionId) { write(() -> { touch(userId, "ws:" + sessionId); return null; }); }
+
+    public void heartbeat(long userId, String clientId) { write(() -> { touch(userId, "http:" + clientId); return null; }); }
+
+    public void offline(long userId, String clientId) { close(userId, "http:" + clientId); }
+
+    private void touch(long userId, String clientId) {
         Instant now = Instant.now();
-        recordDailyOnline(userId, now);
-        sessionsByUser.compute(userId, (ignored, sessions) -> {
-            Set<String> activeSessions = sessions == null ? ConcurrentHashMap.newKeySet() : sessions;
-            activeSessions.add(sessionId);
-            return activeSessions;
-        });
+        mapper.expireClient(userId, clientId, now.minusSeconds(TIMEOUT_SECONDS), TIMEOUT_SECONDS);
+        mapper.touch(userId, clientId, now);
+        mapper.recordDailyOnline(userId, LocalDate.ofInstant(now, BUSINESS_ZONE), now);
     }
 
-    public void heartbeat(long userId, String clientId) {
-        Instant now = Instant.now();
-        recordDailyOnline(userId, now);
-        legacyHeartbeatsByUser.computeIfAbsent(userId, ignored -> new ConcurrentHashMap<>())
-            .put(clientId, now);
+    public void disconnected(long userId, String sessionId) { close(userId, "ws:" + sessionId); }
+
+    private void close(long userId, String clientId) {
+        write(() -> mapper.close(userId, clientId, Instant.now(), TIMEOUT_SECONDS));
     }
 
-    public void offline(long userId, String clientId) {
-        legacyHeartbeatsByUser.computeIfPresent(userId, (ignored, clients) -> {
-            clients.remove(clientId);
-            return clients.isEmpty() ? null : clients;
-        });
-    }
-
-    private void recordDailyOnline(long userId, Instant now) {
-        LocalDate today = LocalDate.ofInstant(now, BUSINESS_ZONE);
-        recordedDatesByUser.compute(userId, (ignored, recordedDate) -> {
-            if (!today.equals(recordedDate)) {
-                mapper.recordDailyOnline(userId, today, now);
+    @Scheduled(fixedDelay = 15000)
+    public void expireIdleSessions() {
+        Instant cutoff = Instant.now().minusSeconds(TIMEOUT_SECONDS);
+        for (PresenceMapper.ExpiredClient client : mapper.findExpiredClients(cutoff, 200)) {
+            try {
+                // Match the heartbeat's unique-key lock path and recheck expiry after acquiring the lock.
+                write(() -> mapper.expireClient(client.userId(), client.clientId(), cutoff, TIMEOUT_SECONDS));
+            } catch (ConcurrencyFailureException exception) {
+                log.warn("Presence expiry deferred after lock conflicts: userId={}", client.userId());
             }
-            return today;
-        });
+        }
     }
 
-    public void disconnected(long userId, String sessionId) {
-        sessionsByUser.computeIfPresent(userId, (ignored, sessions) -> {
-            sessions.remove(sessionId);
-            return sessions.isEmpty() ? null : sessions;
-        });
+    private <T> T write(Supplier<T> action) {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return writes.execute(status -> action.get());
+            } catch (ConcurrencyFailureException exception) {
+                // TransactionTemplate has rolled back before retrying the entire operation.
+                if (attempt == 3) throw exception;
+            }
+        }
     }
 
     public long currentOnlineCount() {
-        Instant cutoff = Instant.now().minus(LEGACY_HEARTBEAT_TIMEOUT);
-        legacyHeartbeatsByUser.forEach((userId, clients) ->
-            legacyHeartbeatsByUser.computeIfPresent(userId, (ignored, activeClients) -> {
-                activeClients.entrySet().removeIf(entry -> entry.getValue().isBefore(cutoff));
-                return activeClients.isEmpty() ? null : activeClients;
-            })
-        );
-        Set<Long> onlineUsers = new HashSet<>(sessionsByUser.keySet());
-        onlineUsers.addAll(legacyHeartbeatsByUser.keySet());
-        return onlineUsers.size();
+        return mapper.countOnline(Instant.now().minusSeconds(TIMEOUT_SECONDS));
     }
+
+    public List<PresenceMapper.Summary> summaries(List<Long> userIds) {
+        if (userIds.isEmpty()) return List.of();
+        return mapper.summaries(userIds, Instant.now().minusSeconds(TIMEOUT_SECONDS), TIMEOUT_SECONDS);
+    }
+
+    public List<PresenceMapper.Visit> history(long userId, int limit, int offset) {
+        return mapper.history(userId, limit, offset, Instant.now().minusSeconds(TIMEOUT_SECONDS), TIMEOUT_SECONDS);
+    }
+
+    public long historyCount(long userId) { return mapper.historyCount(userId); }
 }

@@ -53,4 +53,11 @@ public class WorkoutController {
     public WorkoutStats stats(HttpServletRequest request) {
         return repository.stats(CurrentUser.id(request));
     }
+
+    @PostMapping("/detail-visits")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void recordDetailVisit(HttpServletRequest request,
+        @Valid @RequestBody WorkoutDtos.DetailVisitRequest visit) {
+        repository.recordDetailVisit(CurrentUser.id(request), visit);
+    }
 }

@@ -83,7 +83,8 @@
     </select>
 
     <select id="stats" resultMap="statsResultMap">
-        select count(*) completed_count, coalesce(sum(duration_minutes), 0) total_minutes
+        select (select count(*) from training_detail_visits where user_id = #{userId}) completed_count,
+               coalesce(sum(duration_minutes), 0) total_minutes
         from (
             select duration_minutes, completion_percent from workout_records where user_id = #{userId}
             union all
@@ -93,14 +94,15 @@
     </select>
 
     <select id="completedDates" resultType="java.time.LocalDate">
-        select distinct cast(completed_at as date) completed_date
-        from (
-            select completed_at, completion_percent from workout_records where user_id = #{userId}
-            union all
-            select completed_at, completion_percent from custom_workout_records where user_id = #{userId}
-        ) history
-        where completion_percent >= 80
+        select distinct cast(visited_at as date) completed_date
+        from training_detail_visits
+        where user_id = #{userId}
         order by completed_date desc
     </select>
+
+    <insert id="recordDetailVisit">
+        insert into training_detail_visits(user_id, detail_type, item_id)
+        values (#{userId}, #{detailType}, #{itemId})
+    </insert>
 
 </mapper>
