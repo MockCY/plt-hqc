@@ -61,7 +61,8 @@ public final class CatalogDtos {
         Integer videoDurationSeconds,
         String backgroundMusicUrl,
         String instructionAudioUrl,
-        List<TrainingSet> sets
+        List<TrainingSet> sets,
+        Integer recommendedPlays
     ) {
     }
 
@@ -80,7 +81,8 @@ public final class CatalogDtos {
         long viewCount,
         List<CourseExerciseView> exercises,
         String introduction,
-        String audience
+        String audience,
+        String trainingTags
     ) {
     }
 }

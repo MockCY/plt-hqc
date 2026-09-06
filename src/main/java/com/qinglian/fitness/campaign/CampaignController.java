@@ -29,6 +29,11 @@ public class CampaignController {
         return repository.status(CurrentUser.id(request), normalize(code));
     }
 
+    @GetMapping("/catalog")
+    public java.util.List<CampaignDtos.CampaignSummary> catalog() {
+        return repository.catalog();
+    }
+
     @PostMapping("/{code}/checkins")
     public CheckinResult checkin(HttpServletRequest request, @PathVariable String code) {
         return repository.checkin(CurrentUser.id(request), normalize(code));

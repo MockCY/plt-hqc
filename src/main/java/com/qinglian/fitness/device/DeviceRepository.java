@@ -5,11 +5,13 @@ import com.qinglian.fitness.device.DeviceDtos.BindStatus;
 import com.qinglian.fitness.device.DeviceDtos.BoundDevice;
 import com.qinglian.fitness.device.DeviceDtos.DeviceView;
 import com.qinglian.fitness.mapper.DeviceMapper;
-import org.springframework.dao.DataIntegrityViolationException;
+import com.qinglian.fitness.common.ApiException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -24,6 +26,10 @@ public class DeviceRepository {
         return Optional.ofNullable(mapper.findCurrent(userId));
     }
 
+    public List<BoundDevice> list(long userId) {
+        return mapper.findAllBound(userId);
+    }
+
     @Transactional
     public BindResult bind(long userId, String serialNumber) {
         if (serialNumber == null || serialNumber.isBlank()) {
@@ -33,22 +39,17 @@ public class DeviceRepository {
         DeviceView device = mapper.findBySerialNumber(serialNumber.trim());
         if (device == null) return new BindResult(BindStatus.NOT_FOUND, null);
 
+        // Serialize claims from different users before checking device ownership.
+        if (mapper.lockDevice(device.id()) == null) return new BindResult(BindStatus.NOT_FOUND, null);
+
         Long bindingUserId = mapper.findBindingUserId(device.id());
         if (bindingUserId != null && bindingUserId != userId) {
             return new BindResult(BindStatus.ALREADY_BOUND, null);
         }
 
-        BoundDevice previous = bindingUserId == null ? mapper.findCurrent(userId) : null;
-        try {
-            if (bindingUserId == null && mapper.updateSelection(userId, device.id()) == 0) {
-                mapper.createSelection(userId, device.id());
-            }
-        } catch (DataIntegrityViolationException exception) {
-            return new BindResult(BindStatus.ALREADY_BOUND, null);
-        }
-        BoundDevice bound = mapper.findCurrent(userId);
+        if (bindingUserId == null) mapper.createSelection(userId, device.id());
+        BoundDevice bound = mapper.findBound(userId, device.id());
         if (bindingUserId == null) {
-            if (previous != null) mapper.recordUnbound(previous.id(), previous.boundAt());
             mapper.recordBound(device.id(), bound.boundAt());
         }
         return new BindResult(BindStatus.BOUND, bound);
@@ -69,8 +70,20 @@ public class DeviceRepository {
     @Transactional
     public boolean unbind(long userId) {
         mapper.lockUser(userId);
-        BoundDevice previous = mapper.findCurrent(userId);
-        if (previous == null || mapper.deleteSelection(userId) == 0) return false;
+        List<BoundDevice> devices = mapper.findAllBound(userId);
+        if (devices.isEmpty()) return false;
+        if (devices.size() > 1) {
+            throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ID_REQUIRED", "已绑定多台设备，请选择要解绑的设备");
+        }
+        return unbind(userId, devices.getFirst().id());
+    }
+
+    @Transactional
+    public boolean unbind(long userId, long deviceId) {
+        mapper.lockUser(userId);
+        mapper.lockDevice(deviceId);
+        BoundDevice previous = mapper.findBound(userId, deviceId);
+        if (previous == null || mapper.deleteSelection(userId, deviceId) == 0) return false;
         mapper.recordUnbound(previous.id(), previous.boundAt());
         return true;
     }

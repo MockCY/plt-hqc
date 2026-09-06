@@ -25,6 +25,9 @@ public interface WorkoutMapper {
 
     StatsBase stats(@Param("userId") long userId);
 
+    int recordActivity(@Param("userId") long userId,
+                       @Param("activity") com.qinglian.fitness.workout.WorkoutDtos.ActivityRequest activity);
+
     int recordDetailVisit(@Param("userId") long userId, @Param("detailType") String detailType,
                          @Param("itemId") long itemId);
 

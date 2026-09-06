@@ -11,9 +11,12 @@ import java.time.LocalDateTime;
 @Mapper
 public interface DeviceMapper {
     Long lockUser(@Param("userId") long userId);
+    Long lockDevice(@Param("deviceId") long deviceId);
     int recordBound(@Param("deviceId") long deviceId, @Param("boundAt") LocalDateTime boundAt);
     int recordUnbound(@Param("deviceId") long deviceId, @Param("boundAt") LocalDateTime boundAt);
     BoundDevice findCurrent(@Param("userId") long userId);
+    List<BoundDevice> findAllBound(@Param("userId") long userId);
+    BoundDevice findBound(@Param("userId") long userId, @Param("deviceId") long deviceId);
     DeviceView findBySerialNumber(@Param("serialNumber") String serialNumber);
     int insertThirdPartyDevice(
         @Param("serialNumber") String serialNumber,
@@ -22,7 +25,6 @@ public interface DeviceMapper {
         @Param("deviceModel") String deviceModel
     );
     Long findBindingUserId(@Param("deviceId") long deviceId);
-    int updateSelection(@Param("userId") long userId, @Param("deviceId") long deviceId);
     int createSelection(@Param("userId") long userId, @Param("deviceId") long deviceId);
-    int deleteSelection(@Param("userId") long userId);
+    int deleteSelection(@Param("userId") long userId, @Param("deviceId") long deviceId);
 }

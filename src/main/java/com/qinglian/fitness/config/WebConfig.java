@@ -47,6 +47,7 @@ public class WebConfig implements WebMvcConfigurer {
                 "/api/exercises/**",
                 "/api/devices",
                 "/api/plans/catalog",
+                "/api/campaigns/catalog",
                 "/api/plans/detail/*"
             );
         registry.addInterceptor(adminLoginInterceptor)

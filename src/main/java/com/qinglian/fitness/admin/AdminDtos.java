@@ -75,7 +75,7 @@ public final class AdminDtos {
         String summary, String coverImage, String videoUrl, String videoCoverImage,
         Integer videoDurationSeconds, long viewCount, String status, int sortOrder,
         List<Long> exerciseIds, Instant createdAt, Instant updatedAt,
-        String introduction, String audience, List<CourseExerciseRequest> exercises
+        String introduction, String audience, List<CourseExerciseRequest> exercises, String trainingTags
     ) {
     }
 
@@ -95,13 +95,15 @@ public final class AdminDtos {
         List<@NotNull Long> exerciseIds,
         @Size(max = 5000) String introduction,
         @Size(max = 2000) String audience,
-        @Size(max = 100) List<@NotNull @Valid CourseExerciseRequest> exercises
+        @Size(max = 100) List<@NotNull @Valid CourseExerciseRequest> exercises,
+        @Size(max = 200) String trainingTags
     ) {
     }
 
     public record CourseExerciseRequest(
         @Min(1) long exerciseId,
-        @NotEmpty @Size(max = 50) List<@NotNull @Valid TrainingSet> sets
+        @NotEmpty @Size(max = 50) List<@NotNull @Valid TrainingSet> sets,
+        @Min(1) @Max(999) Integer recommendedPlays
     ) {
     }
 

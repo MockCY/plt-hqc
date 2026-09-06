@@ -133,7 +133,7 @@ public class AdminRepository {
         InsertCommand<CourseRequest> command = new InsertCommand<>(request);
         mapper.insertCourse(command);
         long id = generatedId(command);
-        replaceCourseExercises(id, request.exerciseIds(), request.exercises());
+        replaceCourseExercises(id, request.exerciseIds(), request.exercises(), "PUBLISHED".equals(request.status()));
         return course(id);
     }
 
@@ -142,7 +142,7 @@ public class AdminRepository {
         course(id);
         validateContentStatus(request.status());
         mapper.updateCourse(id, request);
-        replaceCourseExercises(id, request.exerciseIds(), request.exercises());
+        replaceCourseExercises(id, request.exerciseIds(), request.exercises(), "PUBLISHED".equals(request.status()));
         return course(id);
     }
 
@@ -449,7 +449,7 @@ public class AdminRepository {
         return new CourseRow(row.id(), row.title(), row.type(), row.durationMinutes(), row.level(), row.equipment(),
             row.summary(), row.coverImage(), row.videoUrl(), row.videoCoverImage(), row.videoDurationSeconds(),
             row.viewCount(), row.status(), row.sortOrder(), mapper.findCourseExerciseIds(row.id()),
-            row.createdAt(), row.updatedAt(), row.introduction(), row.audience(), mapper.findCourseExerciseSettings(row.id()));
+            row.createdAt(), row.updatedAt(), row.introduction(), row.audience(), mapper.findCourseExerciseSettings(row.id()), row.trainingTags());
     }
 
     private PlanRow toPlanRow(PlanData row) {
@@ -459,23 +459,31 @@ public class AdminRepository {
             row.active(), row.sortOrder(), mapper.findPlanItems(row.id()), row.createdAt(), row.updatedAt());
     }
 
-    private void replaceCourseExercises(long courseId, List<Long> exerciseIds, List<CourseExerciseRequest> exercises) {
+    private void replaceCourseExercises(long courseId, List<Long> exerciseIds, List<CourseExerciseRequest> exercises, boolean publishing) {
         // Preserve per-set settings when an older client sends only exercise IDs.
         var existing = mapper.findCourseExerciseSettings(courseId);
         List<CourseExerciseRequest> items = exercises != null ? exercises :
             (exerciseIds == null ? List.of() : exerciseIds.stream().distinct().map(id -> existing.stream()
                 .filter(item -> item.exerciseId() == id).findFirst()
-                .orElse(new CourseExerciseRequest(id, List.of(new com.qinglian.fitness.catalog.TrainingSet("双侧", 60, 0, 0)))))
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "COURSE_SETS_REQUIRED", "请在课程动作编排中配置训练组和次数")))
                 .toList());
         var seen = new java.util.HashSet<Long>();
+        if (publishing && items.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_SETS_REQUIRED", "发布课程前请配置训练动作和次数");
         for (var item : items) {
             if (!seen.add(item.exerciseId())) throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_EXERCISE_DUPLICATE", "课程中不能重复添加同一动作");
-            if (mapper.findExercise(item.exerciseId()) == null) throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_EXERCISE_NOT_FOUND", "所选动作不存在");
+            var exercise = mapper.findExercise(item.exerciseId());
+            if (exercise == null) throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_EXERCISE_NOT_FOUND", "所选动作不存在");
+            if (item.sets() == null || item.sets().isEmpty() || item.sets().stream().anyMatch(set -> set == null || set.repetitions() == null || set.repetitions() < 1 || set.repetitions() > 999)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_REPETITIONS_REQUIRED", "请为每个训练组填写 1 至 999 次");
+            }
+            if (publishing && (!"PUBLISHED".equals(exercise.status()) || exercise.videoUrl() == null || exercise.videoUrl().isBlank())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "COURSE_VIDEO_REQUIRED", "发布课程前请为所有动作配置示范视频并发布动作");
+            }
         }
         mapper.deleteCourseExercises(courseId);
         int order = 10;
         for (var item : items) {
-            mapper.insertCourseExercise(courseId, item.exerciseId(), order, item.sets());
+            mapper.insertCourseExercise(courseId, item.exerciseId(), order, item.sets(), item.recommendedPlays());
             order += 10;
         }
     }

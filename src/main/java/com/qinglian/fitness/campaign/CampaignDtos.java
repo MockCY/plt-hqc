@@ -20,4 +20,7 @@ public final class CampaignDtos {
 
     public record CheckinResult(boolean checkedInToday, int totalCheckins, LocalDate checkinDate) {
     }
+
+    public record CampaignSummary(String code, String title, List<String> rules, LocalDate startDate, LocalDate endDate) {
+    }
 }

@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS user_device_selections (
     user_id BIGINT UNSIGNED NOT NULL,
     device_id BIGINT UNSIGNED NOT NULL,
     selected_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (user_id),
+    PRIMARY KEY (user_id, device_id),
     UNIQUE KEY uk_user_device_device (device_id),
     CONSTRAINT fk_user_device_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_device_device FOREIGN KEY (device_id) REFERENCES devices(id)

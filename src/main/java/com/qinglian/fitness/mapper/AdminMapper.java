@@ -78,7 +78,8 @@ public interface AdminMapper {
         @Param("courseId") long courseId,
         @Param("exerciseId") long exerciseId,
         @Param("sortOrder") int sortOrder,
-        @Param("sets") List<com.qinglian.fitness.catalog.TrainingSet> sets
+        @Param("sets") List<com.qinglian.fitness.catalog.TrainingSet> sets,
+        @Param("recommendedPlays") Integer recommendedPlays
     );
 
     long countExercisesFiltered(@Param("query") String query, @Param("status") String status);
@@ -216,7 +217,7 @@ public interface AdminMapper {
         long id, String title, String type, int durationMinutes, String level, String equipment,
         String summary, String coverImage, String videoUrl, String videoCoverImage,
         Integer videoDurationSeconds, long viewCount, String status, int sortOrder,
-        Instant createdAt, Instant updatedAt, String introduction, String audience
+        Instant createdAt, Instant updatedAt, String introduction, String audience, String trainingTags
     ) {
     }
 

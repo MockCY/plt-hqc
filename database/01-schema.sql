@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS courses (
     summary VARCHAR(300) NOT NULL,
     introduction TEXT NULL,
     audience TEXT NULL,
+    training_tags VARCHAR(200) NULL,
     cover_image VARCHAR(500) NULL,
     video_url VARCHAR(500) NULL,
     video_cover_image VARCHAR(500) NULL,
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS course_exercises (
     duration_seconds INT NULL,
     target VARCHAR(40) NULL,
     training_sets JSON NULL,
+    recommended_plays INT NULL,
     PRIMARY KEY (course_id, exercise_id),
     CONSTRAINT fk_course_exercises_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     CONSTRAINT fk_course_exercises_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
@@ -291,7 +293,7 @@ CREATE TABLE IF NOT EXISTS user_device_selections (
     user_id BIGINT UNSIGNED NOT NULL,
     device_id BIGINT UNSIGNED NOT NULL,
     selected_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (user_id),
+    PRIMARY KEY (user_id, device_id),
     UNIQUE KEY uk_user_device_device (device_id),
     CONSTRAINT fk_user_device_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_device_device FOREIGN KEY (device_id) REFERENCES devices(id)
@@ -321,6 +323,17 @@ CREATE TABLE IF NOT EXISTS training_detail_visits (
     UNIQUE KEY uk_training_visit_legacy (detail_type, legacy_record_id),
     KEY idx_training_visit_user_date (user_id, visited_at),
     CONSTRAINT fk_training_visit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS training_activity (
+    user_id BIGINT UNSIGNED NOT NULL,
+    activity_type VARCHAR(20) NOT NULL,
+    item_id BIGINT UNSIGNED NOT NULL,
+    started_at DATETIME(3) NOT NULL,
+    training_date DATE NOT NULL,
+    active_seconds INT UNSIGNED NOT NULL,
+    PRIMARY KEY (user_id, activity_type, item_id, started_at, training_date),
+    CONSTRAINT fk_training_activity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS campaign_checkins (

@@ -55,6 +55,7 @@
             <arg column="updated_at" javaType="java.time.Instant"/>
             <arg column="introduction" javaType="java.lang.String"/>
             <arg column="audience" javaType="java.lang.String"/>
+            <arg column="training_tags" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
@@ -62,6 +63,7 @@
         <constructor>
             <idArg column="exercise_id" javaType="_long"/>
             <arg column="training_sets" javaType="java.util.List" typeHandler="com.qinglian.fitness.mapper.TrainingSetListTypeHandler"/>
+            <arg column="recommended_plays" javaType="java.lang.Integer"/>
         </constructor>
     </resultMap>
 
@@ -345,18 +347,17 @@
     </select>
 
     <select id="findCourseExerciseSettings" resultMap="courseExerciseSettingsMap">
-        select exercise_id, coalesce(training_sets, json_array(json_object(
-            'side', '双侧', 'durationSeconds', coalesce(duration_seconds, 60), 'repetitions', 0, 'springCount', 0))) training_sets
+        select exercise_id, coalesce(training_sets, json_array()) training_sets, recommended_plays
         from course_exercises where course_id = #{courseId} order by sort_order
     </select>
 
     <insert id="insertCourse" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         insert into courses(title, type, duration_minutes, level, equipment, summary, cover_image,
-            video_url, video_cover_image, video_duration_seconds, status, sort_order, introduction, audience)
+            video_url, video_cover_image, video_duration_seconds, status, sort_order, introduction, audience, training_tags)
         values (trim(#{request.title}), trim(#{request.type}), #{request.durationMinutes}, trim(#{request.level}),
             trim(#{request.equipment}), trim(#{request.summary}), nullif(trim(#{request.coverImage}), ''),
             nullif(trim(#{request.videoUrl}), ''), nullif(trim(#{request.videoCoverImage}), ''),
-            #{request.videoDurationSeconds}, #{request.status}, #{request.sortOrder}, #{request.introduction}, #{request.audience})
+            #{request.videoDurationSeconds}, #{request.status}, #{request.sortOrder}, #{request.introduction}, #{request.audience}, #{request.trainingTags})
     </insert>
 
     <update id="updateCourse">
@@ -369,6 +370,7 @@
             video_cover_image = nullif(trim(#{request.videoCoverImage}), ''),
             video_duration_seconds = #{request.videoDurationSeconds}, status = #{request.status},
             introduction = #{request.introduction}, audience = #{request.audience},
+            <if test="request.trainingTags != null">training_tags = #{request.trainingTags},</if>
             sort_order = #{request.sortOrder}
         where id = #{id}
     </update>
@@ -377,8 +379,8 @@
     <delete id="deleteCourseExercises">delete from course_exercises where course_id = #{courseId}</delete>
 
     <insert id="insertCourseExercise">
-        insert into course_exercises(course_id, exercise_id, sort_order, training_sets)
-        values (#{courseId}, #{exerciseId}, #{sortOrder}, #{sets,typeHandler=com.qinglian.fitness.mapper.TrainingSetListTypeHandler})
+        insert into course_exercises(course_id, exercise_id, sort_order, training_sets, recommended_plays)
+        values (#{courseId}, #{exerciseId}, #{sortOrder}, #{sets,typeHandler=com.qinglian.fitness.mapper.TrainingSetListTypeHandler}, #{recommendedPlays})
     </insert>
 
     <select id="countExercisesFiltered" resultType="long">

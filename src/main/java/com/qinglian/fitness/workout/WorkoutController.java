@@ -60,4 +60,11 @@ public class WorkoutController {
         @Valid @RequestBody WorkoutDtos.DetailVisitRequest visit) {
         repository.recordDetailVisit(CurrentUser.id(request), visit);
     }
+
+    @PostMapping("/activity")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void recordActivity(HttpServletRequest request,
+        @Valid @RequestBody WorkoutDtos.ActivityRequest activity) {
+        repository.recordActivity(CurrentUser.id(request), activity);
+    }
 }

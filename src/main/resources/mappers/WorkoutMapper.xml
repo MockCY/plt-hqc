@@ -82,23 +82,40 @@
         limit #{limit}
     </select>
 
+    <!-- Completed records from older clients remain valid; a live session replaces
+         its completed record's rounded duration instead of counting both. -->
+    <sql id="activityHistory">
+        select training_date, active_seconds from training_activity where user_id = #{userId}
+        union all
+        select cast(wr.completed_at as date), wr.duration_minutes * 60
+        from workout_records wr where wr.user_id = #{userId}
+        and not exists (select 1 from training_activity a where a.user_id = wr.user_id
+            and a.activity_type = 'COURSE' and a.item_id = wr.course_id and a.started_at = wr.started_at)
+        union all
+        select cast(wr.completed_at as date), wr.duration_minutes * 60
+        from custom_workout_records wr where wr.user_id = #{userId}
+        and not exists (select 1 from training_activity a where a.user_id = wr.user_id
+            and a.activity_type = 'CUSTOM_COURSE' and a.item_id = wr.custom_course_id and a.started_at = wr.started_at)
+    </sql>
+
     <select id="stats" resultMap="statsResultMap">
-        select (select count(*) from training_detail_visits where user_id = #{userId}) completed_count,
-               coalesce(sum(duration_minutes), 0) total_minutes
-        from (
-            select duration_minutes, completion_percent from workout_records where user_id = #{userId}
-            union all
-            select duration_minutes, completion_percent from custom_workout_records where user_id = #{userId}
-        ) history
-        where completion_percent >= 80
+        select (select count(*) from workout_records where user_id = #{userId} and completion_percent >= 80)
+             + (select count(*) from custom_workout_records where user_id = #{userId} and completion_percent >= 80) completed_count,
+               floor(coalesce(sum(active_seconds), 0) / 60) total_minutes
+        from (<include refid="activityHistory"/>) history
     </select>
 
     <select id="completedDates" resultType="java.time.LocalDate">
-        select distinct cast(visited_at as date) completed_date
-        from training_detail_visits
-        where user_id = #{userId}
-        order by completed_date desc
+        select distinct training_date from (<include refid="activityHistory"/>) history
+        where active_seconds > 0 order by training_date desc
     </select>
+
+    <insert id="recordActivity">
+        insert into training_activity(user_id, activity_type, item_id, started_at, training_date, active_seconds)
+        values (#{userId}, #{activity.activityType}, #{activity.itemId}, #{activity.startedAt},
+                #{activity.trainingDate}, #{activity.activeSeconds})
+        on duplicate key update active_seconds = greatest(active_seconds, values(active_seconds))
+    </insert>
 
     <insert id="recordDetailVisit">
         insert into training_detail_visits(user_id, detail_type, item_id)

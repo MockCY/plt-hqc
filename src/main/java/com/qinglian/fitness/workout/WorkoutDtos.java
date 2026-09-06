@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 public final class WorkoutDtos {
 
@@ -12,6 +13,17 @@ public final class WorkoutDtos {
     }
 
     public enum DetailType { EXERCISE, COURSE, PLAN }
+
+    public enum ActivityType { EXERCISE, COURSE, CUSTOM_COURSE }
+
+    public record ActivityRequest(
+        @NotNull ActivityType activityType,
+        @NotNull @Min(1) Long itemId,
+        @NotNull Instant startedAt,
+        @NotNull LocalDate trainingDate,
+        @Min(1) @Max(86400) int activeSeconds
+    ) {
+    }
 
     public record DetailVisitRequest(@NotNull DetailType detailType, @NotNull @Min(1) Long itemId) {
     }
@@ -37,6 +49,6 @@ public final class WorkoutDtos {
     ) {
     }
 
-    public record WorkoutStats(long completedCount, long totalMinutes, int consecutiveDays) {
+    public record WorkoutStats(long completedCount, long totalMinutes, int consecutiveDays, long trainingDays) {
     }
 }

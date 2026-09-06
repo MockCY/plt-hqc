@@ -25,6 +25,9 @@
     <select id="lockUser" resultType="java.lang.Long">
         select id from users where id = #{userId} for update
     </select>
+    <select id="lockDevice" resultType="java.lang.Long">
+        select id from devices where id = #{deviceId} for update
+    </select>
     <update id="recordBound">
         update devices set last_bound_at = #{boundAt} where id = #{deviceId}
     </update>
@@ -33,11 +36,24 @@
         where id = #{deviceId}
     </update>
 
-    <select id="findCurrent" resultMap="boundDeviceResultMap">
+    <sql id="boundDeviceQuery">
         select d.id, coalesce(d.device_name, d.device_model) device_name, d.device_model,
                d.brand, d.device_source, d.serial_number, uds.selected_at as bound_at
         from user_device_selections uds join devices d on d.id = uds.device_id
         where uds.user_id = #{userId}
+    </sql>
+
+    <select id="findCurrent" resultMap="boundDeviceResultMap">
+        <include refid="boundDeviceQuery"/>
+        order by uds.selected_at desc, d.id desc limit 1
+    </select>
+    <select id="findAllBound" resultMap="boundDeviceResultMap">
+        <include refid="boundDeviceQuery"/>
+        order by uds.selected_at desc, d.id desc
+    </select>
+    <select id="findBound" resultMap="boundDeviceResultMap">
+        <include refid="boundDeviceQuery"/>
+        and uds.device_id = #{deviceId}
     </select>
 
     <select id="findBySerialNumber" resultMap="deviceResultMap">
@@ -52,18 +68,14 @@
     </insert>
 
     <select id="findBindingUserId" resultType="java.lang.Long">
-        select user_id from user_device_selections where device_id = #{deviceId}
+        select user_id from user_device_selections where device_id = #{deviceId} for update
     </select>
-
-    <update id="updateSelection">
-        update user_device_selections set device_id = #{deviceId}, selected_at = current_timestamp(3) where user_id = #{userId}
-    </update>
 
     <insert id="createSelection">
         insert into user_device_selections(user_id, device_id) values (#{userId}, #{deviceId})
     </insert>
 
     <delete id="deleteSelection">
-        delete from user_device_selections where user_id = #{userId}
+        delete from user_device_selections where user_id = #{userId} and device_id = #{deviceId}
     </delete>
 </mapper>

@@ -20,6 +20,25 @@
           and (end_date is null or end_date &gt;= #{date})
     </select>
 
+    <resultMap id="campaignCatalogMap" type="com.qinglian.fitness.mapper.CampaignMapper$CampaignCatalogRow">
+        <constructor>
+            <arg column="code" javaType="java.lang.String"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="rules_text" javaType="java.lang.String"/>
+            <arg column="start_date" javaType="java.time.LocalDate"/>
+            <arg column="end_date" javaType="java.time.LocalDate"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findOpenCampaigns" resultMap="campaignCatalogMap">
+        select code, title, rules_text, start_date, end_date
+        from campaigns
+        where status = 'PUBLISHED'
+          and (start_date is null or start_date &lt;= #{date})
+          and (end_date is null or end_date &gt;= #{date})
+        order by sort_order, id
+    </select>
+
     <insert id="createCheckin">
         insert into campaign_checkins(user_id, campaign_code, checkin_date)
         values (#{userId}, #{code}, #{date})

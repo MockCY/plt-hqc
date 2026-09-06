@@ -36,6 +36,14 @@ public class CampaignRepository {
         );
     }
 
+    public List<CampaignDtos.CampaignSummary> catalog() {
+        return campaignMapper.findOpenCampaigns(LocalDate.now()).stream()
+            .map(row -> new CampaignDtos.CampaignSummary(row.code(), row.title(),
+                row.rulesText() == null ? List.of() : row.rulesText().lines().filter(line -> !line.isBlank()).toList(),
+                row.startDate(), row.endDate()))
+            .toList();
+    }
+
     @Transactional
     public CheckinResult checkin(long userId, String code) {
         status(userId, code);

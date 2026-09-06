@@ -13,10 +13,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/devices")
@@ -25,6 +27,19 @@ public class DeviceController {
 
     public DeviceController(DeviceRepository repository) {
         this.repository = repository;
+    }
+
+    @GetMapping
+    public List<BoundDevice> list(HttpServletRequest request) {
+        return repository.list(CurrentUser.id(request));
+    }
+
+    @DeleteMapping("/{deviceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unbindDevice(HttpServletRequest request, @PathVariable long deviceId) {
+        if (!repository.unbind(CurrentUser.id(request), deviceId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_BOUND", "该设备未绑定到当前账号");
+        }
     }
 
     @GetMapping("/current")

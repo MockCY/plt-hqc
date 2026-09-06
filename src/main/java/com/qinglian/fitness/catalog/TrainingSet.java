@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Pattern;
 
 public record TrainingSet(
     @NotNull @Pattern(regexp = "双侧|左侧|右侧") String side,
-    @Min(1) @Max(3600) int durationSeconds,
-    @Min(0) @Max(999) int repetitions,
+    @Min(1) @Max(3600) Integer durationSeconds,
+    @NotNull @Min(1) @Max(999) Integer repetitions,
     @Min(0) @Max(12) int springCount
 ) {
 }

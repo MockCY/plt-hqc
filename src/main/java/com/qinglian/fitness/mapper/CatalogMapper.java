@@ -37,7 +37,8 @@ public interface CatalogMapper {
         Integer videoDurationSeconds,
         long viewCount,
         String introduction,
-        String audience
+        String audience,
+        String trainingTags
     ) {
     }
 }

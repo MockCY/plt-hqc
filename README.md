@@ -71,6 +71,10 @@ database/16-plan-presentation.sql
 
 第三个文件先替换其中的随机密码。如果 Java 和 MySQL 在同一台服务器，应用账号限制为 `localhost`，并在云安全组中关闭公网 `3306`。
 
+训练时长统计升级需先执行 `database/27-training-activity.sql`，再运行新版后端。该脚本通过 `CREATE TABLE IF NOT EXISTS` 新增 `training_activity` 表，用于保存实际训练秒数，不修改已有训练记录；仅重新编译或重启后端不会自动建表（`spring.sql.init.mode=never`）。漏执行时，训练统计和 `/api/workout-records/activity` 会报缺表错误。
+
+也可在 `server` 目录使用 Java 21 运行 `tools/TrainingActivityMigration.java`，classpath 需包含项目使用的 MySQL Connector/J 和 SnakeYAML：先传 `--check` 检查，传 `--apply` 执行缺失的建表脚本并验证字段。连接配置读取 `application.yml`，优先使用 `DB_URL`、`DB_USERNAME`、`DB_PASSWORD` 环境变量。
+
 ## 4. 配置与启动
 
 动作详情配置升级需执行 `database/24-exercise-guidance.sql`，新增重点部位图片与文字、弹簧组数数组、动作要点、常见错误和动作指令音频。新增字段默认未配置，不从训练组数推算弹簧组数。管理端和小程序通过原有动作接口读写这些字段；训练目标字段保留兼容旧课程，但动作详情不再展示。
@@ -135,10 +139,12 @@ Authorization: Bearer <token>
 | GET | `/api/plans/catalog` | 否 | 可选训练计划列表 |
 | GET | `/api/plans/current` | 是 | 当前训练计划；未选择时返回 `204` |
 | PUT | `/api/plans/{id}/select` | 是 | 选择并保存当前计划 |
-| GET | `/api/devices/current` | 是 | 查询当前账号绑定的设备档案；未绑定时返回 `204` |
+| GET | `/api/devices` | 是 | 查询当前账号绑定的全部设备 |
+| GET | `/api/devices/current` | 是 | 兼容旧版：查询最近绑定的一台设备；未绑定时返回 `204` |
 | POST | `/api/devices/bind` | 是 | 使用自有设备 SN 码绑定到当前账号 |
 | POST | `/api/devices/third-party` | 是 | 创建第三方设备，系统自动生成内部 SN 并绑定当前账号 |
-| DELETE | `/api/devices/current` | 是 | 解除当前账号的设备绑定 |
+| DELETE | `/api/devices/{deviceId}` | 是 | 解绑当前账号拥有的指定设备 |
+| DELETE | `/api/devices/current` | 是 | 兼容旧版：仅单台绑定可用，多台时返回 `409` |
 | POST | `/api/workout-records` | 是 | 写入训练记录 |
 | GET | `/api/workout-records` | 是 | 训练记录列表 |
 | GET | `/api/workout-records/stats` | 是 | 训练统计 |
@@ -154,6 +160,23 @@ Authorization: Bearer <token>
 完整请求样例见 [examples/api.http](examples/api.http)。
 
 ## 7. 管理后台
+
+### 多设备绑定升级
+
+一个用户可以绑定多台品牌或第三方设备，每台设备只允许绑定一个用户。
+执行 `database/29-multiple-user-devices.sql` 将绑定表主键改为 `(user_id, device_id)`，保留
+`device_id` 唯一索引、所有已有绑定及其时间。新库的 `01-schema.sql` 和 `06-devices.sql` 已使用该结构。
+
+升级顺序：先停止旧后端的绑定写入，再执行迁移、启动新版后端，最后更新小程序。
+旧后端会按用户替换绑定，不可在多设备数据写入后继续运行或直接回滚；如需回滚，先处理多设备数据。
+`tools/MultipleDeviceMigration.java` 默认只检查结构，加 `--apply` 执行迁移并核对已有绑定和时间是否保留。
+
+- `GET /api/devices`：返回当前用户的全部绑定，按绑定时间倒序。
+- `DELETE /api/devices/{deviceId}`：仅解绑当前用户拥有的指定设备，其他设备不受影响。
+- `POST /api/devices/bind` 和 `/third-party`：追加绑定；重复绑定同一设备保留原绑定时间。
+- 旧 `GET /api/devices/current` 返回最近绑定的一台设备。旧 `DELETE /api/devices/current` 仅在绑定一台时生效，多台时返回 `409 DEVICE_ID_REQUIRED`，避免误解绑。
+
+后台设备列表仍按设备展示所属用户，同一个用户可以出现在多行。账号注销会释放该用户的所有设备。
 
 管理接口统一位于 `/api/admin/**`，使用独立管理员会话，不接受小程序用户令牌。首次启动前设置
 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD`，应用会在尚无管理员账号时创建首个账号。创建完成后，密码仅以
