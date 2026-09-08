@@ -50,5 +50,7 @@ public final class WorkoutDtos {
     }
 
     public record WorkoutStats(long completedCount, long totalMinutes, int consecutiveDays, long trainingDays) {
+        @com.fasterxml.jackson.annotation.JsonProperty("watchMinutes")
+        public long watchMinutes() { return totalMinutes; }
     }
 }
