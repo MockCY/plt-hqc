@@ -119,16 +119,34 @@ Hardware shuts WiFi down after 15 minutes without detected activity. This is sep
 - Test wrong password, Bluetooth off/disconnect, Chinese SSID, two beds, duplicate binding, unplugging,
   reconnection, 179-second pause, 180-second pause, 15-minute standby, and wake on movement on real hardware.
 
+## Administrator API
+
+All routes below require an administrator login through the existing admin interceptor:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/admin/sensors` | Paginated sensor list; query/state/binding/bedId/userId filters |
+| GET | `/api/admin/sensors/{id}` | Current binding, status and latest telemetry |
+| GET | `/api/admin/sensors/{id}/bindings` | Paginated binding history |
+| PUT | `/api/admin/sensors/{id}/status` | Set status to ACTIVE or DISABLED |
+| DELETE | `/api/admin/sensors/{id}/bindings/{bindingId}` | Unbind the exact current binding; stale binding returns 409 |
+| GET | `/api/admin/sensor-workouts` | Paginated training sessions and summary across all filtered rows |
+| GET | `/api/admin/sensor-workouts/{id}` | Single session detail, including after completion |
+
+Workout filters: query, status, sensorId, bedId, userId, from and to (inclusive Beijing dates,
+YYYY-MM-DD). Pagination uses page/pageSize, default 1/20. Stored times remain UTC.
+Session duration ends at last motion, excluding the trailing idle timeout. Counts are session deltas;
+the sensor detail count is the device cumulative value. Latest telemetry is not raw sample history.
+
+Disable and unbind close active sessions at last motion, retain history, and write an admin audit in the
+same transaction. Disable retains the binding. No additional migration is required beyond sensor migrations 30/31.
+The admin interface separates device training from course viewing and links from users and beds.
+
 ## Verification commands
 
-```powershell
-# Dedicated local test database only (the suite refuses a production host/database name).
-$env:SENSOR_TEST_DB_URL='jdbc:mysql://127.0.0.1:3308/sensor_iot_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai'
-.\mvnw.cmd test
-```
-
-The sensor SQL integration suite uses a local test root with an empty password. Omit that environment
-variable to skip those integration tests; pure time-window and HTTP authentication tests still run.
+Backend Java test classes were removed at the project owner's request. Maven no longer runs the
+sensor authentication, training-window or database regression tests. Compile/package validation
+should run in a separate checkout when the IDE backend is running; do not clean its active target directory.
 Client protocol tests: Node 22 `--test we-plt/scripts/sensor-protocol.test.mjs`.
 Responsive browser tests: `we-plt/scripts/capture-sensor.mjs` against the local H5 preview on port 5194,
 with mocked sensor API responses. These screenshots do not prove physical BLE connectivity.

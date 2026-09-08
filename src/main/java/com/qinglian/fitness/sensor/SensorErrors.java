@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice(assignableTypes=SensorController.class)
+@RestControllerAdvice(assignableTypes={SensorController.class,AdminSensorController.class})
 public class SensorErrors {
     private static final Logger log = LoggerFactory.getLogger(SensorErrors.class);
     private Map<String,Object> body(String code,String message) {
@@ -26,7 +26,7 @@ public class SensorErrors {
     public ResponseEntity<?> business(ApiException error) {
         return ResponseEntity.status(error.status()).body(body(error.code(),error.getMessage()));
     }
-    @ExceptionHandler({HttpMessageNotReadableException.class,MethodArgumentNotValidException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class,MethodArgumentNotValidException.class,org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
     public ResponseEntity<?> invalid(Exception error) {
         // Do not log or echo raw payloads, which may include pairing credentials.
         return ResponseEntity.badRequest().body(body("INVALID_PAYLOAD","请求格式或必填字段不正确"));
