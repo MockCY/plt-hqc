@@ -1,7 +1,9 @@
 # ARVELLO Docker 部署
 
-ELK 日志采集部署见 [elk/README.md](elk/README.md)。后端容器将 ECS JSON 日志写入
-持久卷 `arvello-backend-logs`，ELK 作为独立 Compose 项目按需启动。
+当前默认使用 [Dozzle 轻量日志网页](logs/README.md)，内存上限为 128 MB，适合现有
+2 GB 服务器查看后端日志。自动部署会启动 Dozzle 并停止旧 ELK，保留已有日志卷。
+后端仍将 ECS JSON 日志写入持久卷 `arvello-backend-logs`。
+原 [ELK 配置](elk/README.md) 保留供以后扩容时参考。
 
 ## GitHub Actions 自动部署
 
@@ -31,7 +33,8 @@ MEDIA_MAX_REQUEST_SIZE=500MB
 ```
 
 工作流会临时生成 `.env` 并上传到 `/home/admin/deploy/.env`，不会将密钥提交到仓库。
-后端工作流只启动 `arvello-backend` 服务，不依赖服务器上存在管理后台镜像。
+工作流启动 `arvello-backend` 和独立的 Dozzle 日志服务，不依赖管理后台镜像。
+Dozzle 镜像在 GitHub Actions 下载，与后端镜像一同上传，服务器无需访问镜像仓库。
 
 ## 准备
 

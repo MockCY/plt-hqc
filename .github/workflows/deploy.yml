@@ -17,9 +17,12 @@ jobs:
         run: |
           docker build -t arvello-backend:latest .
 
-      - name: Save Docker image
+      - name: Pull log viewer image
+        run: docker compose -f deploy/logs/compose.yml pull
+
+      - name: Save deployment images
         run: |
-          docker save arvello-backend:latest -o arvello-backend.tar
+          docker save arvello-backend:latest "$(docker compose -f deploy/logs/compose.yml config --images)" -o arvello-backend.tar
           chmod 644 arvello-backend.tar
           ls -lh arvello-backend.tar
 
@@ -72,7 +75,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy/docker-compose.yml,deploy/.env,deploy/elk"
+          source: "deploy/docker-compose.yml,deploy/.env,deploy/elk,deploy/logs"
           target: "/home/admin/deploy"
           strip_components: 1
 
@@ -89,24 +92,34 @@ jobs:
 
             test -f .env || { echo "Missing /home/admin/deploy/.env"; exit 1; }
             test -f docker-compose.yml || { echo "Missing docker-compose.yml"; exit 1; }
+            test -f logs/compose.yml || { echo "Missing logs/compose.yml"; exit 1; }
             chmod 600 .env
+
+            # Stop the previous ELK stack without removing its logs or volumes.
+            if [ -f elk/.env ]; then
+              docker compose --env-file elk/.env -f elk/compose.yml stop
+            fi
 
             docker load -i arvello-backend.tar
 
             docker rm -f plt-hgc 2>/dev/null || true
             docker compose --env-file .env up -d --no-build --remove-orphans arvello-backend
+            docker compose -f logs/compose.yml up -d --no-build --pull never
 
             rm -f arvello-backend.tar
 
             docker image prune -f
 
             for attempt in 1 2 3 4 5 6; do
-              if curl --fail --silent http://127.0.0.1:8080/api/health >/dev/null; then
+              if curl --fail --silent --max-time 5 http://127.0.0.1:8080/api/health >/dev/null \
+                && curl --fail --silent --max-time 5 http://127.0.0.1:9999/healthcheck >/dev/null; then
                 docker compose ps
+                docker compose -f logs/compose.yml ps
                 exit 0
               fi
               sleep 5
             done
 
             docker compose logs --tail=200 arvello-backend
+            docker compose -f logs/compose.yml logs --tail=100
             exit 1

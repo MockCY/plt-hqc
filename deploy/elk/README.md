@@ -1,13 +1,17 @@
 # ARVELLO ELK 日志采集
 
+当前 2 GB 服务器默认改用 [Dozzle](../logs/README.md)。自动部署会停止本 ELK
+项目并保留其数据卷；以下是扩容后手动使用的配置说明。若将来恢复 ELK，需要先
+调整工作流中的停止 ELK 步骤。
+
 链路：Spring Boot ECS JSON 文件 → Filebeat → Logstash → Elasticsearch → Kibana。
 采集应用启动、业务代码通过 SLF4J 输出的日志及异常堆栈；不会自动生成每条 HTTP
 请求的访问日志，也不采集 MySQL、Nginx 或其他容器的日志。
 异常堆栈在一条 JSON 记录内，无需拼接多行。日志内不应主动输出令牌、请求体或密钥。
 
 ELK 使用独立 Compose 项目 `arvello-elk`，通过只读共享卷 `arvello-backend-logs`
-读取后端日志。后端部署工作流会同步本目录，但不自动启动 ELK；日常后端发布不会
-重建 ELK 容器。生产密钥仅保存在本目录 `.env`，不放进后端 `DEPLOY_ENV`。
+读取后端日志。后端部署工作流会同步本目录，但不自动启动 ELK，目前会停止已有
+ELK 容器。生产密钥仅保存在本目录 `.env`，不放进后端 `DEPLOY_ENV`。
 
 ## 服务器准备
 

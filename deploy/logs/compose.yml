@@ -1,0 +1,38 @@
+name: arvello-logs
+
+services:
+  dozzle:
+    image: ghcr.io/amir20/dozzle:v10.10.0
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      GOMEMLIMIT: 96MiB
+      DOZZLE_FILTER: name=arvello-backend
+      DOZZLE_ENABLE_ACTIONS: "false"
+      DOZZLE_ENABLE_SHELL: "false"
+      DOZZLE_ENABLE_MCP: "false"
+      DOZZLE_NO_ANALYTICS: "true"
+      DOZZLE_DISABLE_AVATARS: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - dozzle-data:/data
+    ports:
+      - "127.0.0.1:9999:8080"
+    healthcheck:
+      test: [CMD, /dozzle, healthcheck]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+volumes:
+  dozzle-data:
+
+networks:
+  default:
+    internal: true
