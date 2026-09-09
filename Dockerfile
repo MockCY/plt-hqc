@@ -15,6 +15,7 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 COPY --from=build /workspace/target/ARVELLO.jar /app/app.jar
+RUN mkdir -p /app/logs && chown 10001:0 /app/logs
 
 USER 10001
 EXPOSE 8080

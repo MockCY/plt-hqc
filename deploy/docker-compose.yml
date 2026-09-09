@@ -12,8 +12,21 @@ services:
       SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080
       MEDIA_ROOT: /data/arvello/media
+      LOGGING_FILE_NAME: /app/logs/application.json
+      LOGGING_STRUCTURED_FORMAT_FILE: ecs
+      LOGGING_LOGBACK_ROLLINGPOLICY_FILE_NAME_PATTERN: /app/logs/application.%d{yyyy-MM-dd}.%i.json
+      LOGGING_LOGBACK_ROLLINGPOLICY_MAX_FILE_SIZE: 50MB
+      LOGGING_LOGBACK_ROLLINGPOLICY_MAX_HISTORY: 7
+      LOGGING_LOGBACK_ROLLINGPOLICY_TOTAL_SIZE_CAP: 1GB
+      LOGGING_LOGBACK_ROLLINGPOLICY_CLEAN_HISTORY_ON_START: "true"
     volumes:
       - ${MEDIA_HOST_PATH:-./data/media}:/data/arvello/media
+      - backend-logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -30,3 +43,7 @@ services:
       - arvello-backend
     ports:
       - "127.0.0.1:8081:80"
+
+volumes:
+  backend-logs:
+    name: arvello-backend-logs

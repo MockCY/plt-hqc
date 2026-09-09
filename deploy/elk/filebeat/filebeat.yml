@@ -1,0 +1,23 @@
+filebeat.inputs:
+  - type: filestream
+    id: arvello-application-json
+    enabled: true
+    paths:
+      - /var/log/arvello/application*.json
+    # Fingerprints keep file identity stable across Logback renames.
+    file_identity.fingerprint: ~
+    prospector.scanner.fingerprint.enabled: true
+    parsers:
+      - ndjson:
+          target: ""
+          overwrite_keys: true
+          add_error_key: true
+
+queue.disk:
+  max_size: 1GB
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.level: info
+logging.to_files: false

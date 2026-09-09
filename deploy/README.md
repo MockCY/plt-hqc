@@ -1,5 +1,8 @@
 # ARVELLO Docker 部署
 
+ELK 日志采集部署见 [elk/README.md](elk/README.md)。后端容器将 ECS JSON 日志写入
+持久卷 `arvello-backend-logs`，ELK 作为独立 Compose 项目按需启动。
+
 ## GitHub Actions 自动部署
 
 仓库的 `Deploy Backend` 工作流需要以下 GitHub Actions Secrets：

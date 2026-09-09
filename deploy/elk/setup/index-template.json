@@ -1,0 +1,32 @@
+{
+  "index_patterns": ["arvello-logs-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "arvello-logs",
+      "index.lifecycle.rollover_alias": "arvello-logs-write"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "message": { "type": "match_only_text" },
+        "log": {
+          "properties": {
+            "level": { "type": "keyword" },
+            "logger": { "type": "keyword" }
+          }
+        },
+        "service": { "properties": { "name": { "type": "keyword" } } },
+        "error": {
+          "properties": {
+            "type": { "type": "keyword" },
+            "message": { "type": "match_only_text" },
+            "stack_trace": { "type": "match_only_text" }
+          }
+        }
+      }
+    }
+  }
+}

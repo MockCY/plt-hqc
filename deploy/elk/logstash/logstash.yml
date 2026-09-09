@@ -1,0 +1,7 @@
+api.http.host: 0.0.0.0
+xpack.monitoring.enabled: false
+pipeline.ecs_compatibility: v8
+queue.type: persisted
+queue.max_bytes: 1gb
+path.queue: /usr/share/logstash/data/queue
+dead_letter_queue.enable: true
