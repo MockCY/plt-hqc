@@ -15,13 +15,17 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
 public class SensorService {
     private static final Logger log = LoggerFactory.getLogger(SensorService.class);
+    private static final DateTimeFormatter LOG_TIME = DateTimeFormatter
+        .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").withZone(ZoneId.of("Asia/Shanghai"));
     private final JdbcTemplate db;
     private final ObjectMapper json;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -192,7 +196,7 @@ public class SensorService {
             db.update("insert into sensor_workout_sessions(sensor_id,bed_id,user_id,boot_id,started_at,last_motion_at,start_count,end_count) values(?,?,?,?,?,?,?,?)",
                 sensorId,number(binding,"bed_id"),number(binding,"user_id"),r.bootId(),at,at,baseline,r.repetitionCount());
             committed("SENSOR_TRAINING_STARTED deviceId={} bedId={} userId={} startedAt={} startCount={}",
-                id,binding.get("bed_id"),binding.get("user_id"),now,baseline);
+                id,binding.get("bed_id"),binding.get("user_id"),LOG_TIME.format(now),baseline);
         } else if (session != null) {
             db.update("update sensor_workout_sessions set end_count=?,last_motion_at=? where id=?",
                 r.repetitionCount(),motion ? at : utc(instant(session,"last_motion_at")),number(session,"id"));
@@ -202,7 +206,7 @@ public class SensorService {
             sensorId,r.bootId(),r.sequence(),r.repetitionCount(),r.moving(),r.standby(),r.sensorOk(),json.writeValueAsString(r),at);
         db.update("update sensor_devices set last_seen_at=? where id=?",at,sensorId);
         committed("SENSOR_READING deviceId={} bootId={} sequence={} moving={} standby={} sensorOk={} totalCount={} bound={} receivedAt={}",
-            id,r.bootId(),r.sequence(),r.moving(),r.standby(),r.sensorOk(),r.repetitionCount(),binding!=null,now);
+            id,r.bootId(),r.sequence(),r.moving(),r.standby(),r.sensorOk(),r.repetitionCount(),binding!=null,LOG_TIME.format(now));
         return Map.of("ok",true,"deviceId",id,"receivedAt",now);
     }
     private void close(long session, String reason) {

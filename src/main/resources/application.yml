@@ -41,6 +41,8 @@ app:
     root: ${MEDIA_ROOT:${user.dir}/data/media}
 
 logging:
+  pattern:
+    dateformat: "yyyy-MM-dd'T'HH:mm:ss.SSSXXX,Asia/Shanghai"
   level:
     root: INFO
     com.qinglian.fitness: INFO
