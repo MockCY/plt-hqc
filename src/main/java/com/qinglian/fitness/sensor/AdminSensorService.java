@@ -106,7 +106,7 @@ public class AdminSensorService {
     }
     public Map<String,Object> workouts(String query,String status,Long sensorId,Long bedId,Long userId,LocalDate from,LocalDate to,int page,int size) {
         status=option(status,Set.of("ALL","ACTIVE","COMPLETED"));
-        StringBuilder where=new StringBuilder(" where 1=1"); List<Object> args=new ArrayList<>();
+        StringBuilder where=new StringBuilder(" where "+VISIBLE_WORKOUT); List<Object> args=new ArrayList<>();
         search(query,"s.device_id,s.device_code,d.serial_number,u.nickname,u.phone,w.user_id",where,args);
         idFilter("w.sensor_id",sensorId,where,args); idFilter("w.bed_id",bedId,where,args); idFilter("w.user_id",userId,where,args);
         if (!status.equals("ALL")) { where.append(" and w.status=?"); args.add(status); }
@@ -124,7 +124,7 @@ public class AdminSensorService {
             throw error(HttpStatus.NOT_FOUND,"SENSOR_NOT_FOUND","传感器不存在");
     }
     public Map<String,Object> workout(long id) {
-        var rows=db.queryForList("select w.*,s.device_id,s.device_code,d.serial_number bed_sn,u.nickname user_name,u.phone user_phone "+WORKOUTS+" where w.id=?",id);
+        var rows=db.queryForList("select w.*,s.device_id,s.device_code,d.serial_number bed_sn,u.nickname user_name,u.phone user_phone "+WORKOUTS+" where w.id=? and "+VISIBLE_WORKOUT,id);
         if(rows.isEmpty()) throw error(HttpStatus.NOT_FOUND,"WORKOUT_NOT_FOUND","训练记录不存在");
         return view(rows.getFirst());
     }

@@ -26,6 +26,8 @@ public class SensorService {
     private static final Logger log = LoggerFactory.getLogger(SensorService.class);
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter
         .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").withZone(ZoneId.of("Asia/Shanghai"));
+    // Keep active sessions and any completed session with a repetition or a visible second.
+    static final String VISIBLE_WORKOUT = "(w.status='ACTIVE' or w.end_count>w.start_count or w.last_motion_at>=timestampadd(second,1,w.started_at))";
     private final JdbcTemplate db;
     private final ObjectMapper json;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -243,13 +245,13 @@ public class SensorService {
             v.put("online",online); v.put("receivedAt",instant(reading,"received_at"));
             v.put("state",flag(reading,"standby") ? "STANDBY" : !online ? "OFFLINE" : !flag(reading,"sensor_ok") ? "ERROR" : flag(reading,"moving") ? "MOVING" : "STILL");
         }
-        Map<String,Object> session = one("select * from sensor_workout_sessions where sensor_id=? and bed_id=? and user_id=? order by id desc limit 1",sensor,bed,user);
+        Map<String,Object> session = one("select w.* from sensor_workout_sessions w where sensor_id=? and bed_id=? and user_id=? and "+VISIBLE_WORKOUT+" order by id desc limit 1",sensor,bed,user);
         v.put("session",session == null ? null : sessionView(session));
         return v;
     }
     public Map<String,Object> history(long user, String sn, Long before) {
         long bed = ownedBed(user,sn);
-        List<Map<String,Object>> rows = db.queryForList("select * from sensor_workout_sessions where bed_id=? and user_id=? and id<? order by id desc limit 21",bed,user,before == null ? Long.MAX_VALUE : before);
+        List<Map<String,Object>> rows = db.queryForList("select w.* from sensor_workout_sessions w where bed_id=? and user_id=? and id<? and "+VISIBLE_WORKOUT+" order by id desc limit 21",bed,user,before == null ? Long.MAX_VALUE : before);
         boolean more = rows.size()>20;
         List<Map<String,Object>> items = rows.stream().limit(20).map(this::sessionView).toList();
         Map<String,Object> result = new LinkedHashMap<>(); result.put("items",items);
