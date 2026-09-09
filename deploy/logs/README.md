@@ -15,26 +15,36 @@ Dozzle 不依赖 Elasticsearch、Logstash、Filebeat、数据库或额外的业�
 1. 构建后端并从 GHCR 下载固定版本的 Dozzle 镜像。
 2. 将两个镜像打进同一个归档，上传到服务器并加载，服务器不再拉取 Dozzle 镜像。
 3. 停止已配置的旧 ELK 容器，保留索引、日志和采集进度卷。
-4. 启动后端及独立的 `arvello-logs` Compose 项目，检查后端与日志网页的健康状态。
+4. 从部署环境生成日志网页登录凭据，启动后端及独立的 `arvello-logs` Compose 项目。
+5. 更新 Nginx 日志代理片段，检查配置并重载，检查后端与日志网页的健康状态。
 
-无需配置新的 `.env`、密码、ES 索引或 Kibana 数据视图。
+默认使用部署环境中的 `ADMIN_USERNAME`、`ADMIN_PASSWORD` 登录；也可在 `DEPLOY_ENV`
+中设置独立的 `LOG_VIEWER_USERNAME`、`LOG_VIEWER_PASSWORD`。日志账户独立于后端数据库，
+在后台修改账号密码不会自动同步，需要更新部署环境并重新部署。
+
+`init-auth.py` 通过 Docker Compose 解析环境配置，并通过 stdin 将密码传入 Dozzle
+生成器，不把明文密码放进命令参数或输出。服务器仅生成 `users.yml` 密码摘要文件，
+权限为 600，禁止提交仓库。每次部署都会重新生成并重建日志容器。
 
 ## 打开网页
 
-部署成功后，在自己的电脑终端执行（替换为实际 SSH 用户和地址）：
+浏览器直接访问 `https://manhart.top/logs/`，登录后选择 `arvello-backend`，即可
+查看近期和实时日志，不需要 SSH 隧道。登录会话最长 12 小时。
 
-```bash
-ssh -N -L 9999:127.0.0.1:9999 admin@SERVER_HOST
+Dozzle 仍只将 9999 端口绑定到服务器回环地址，由现有 HTTPS Nginx 代理访问。
+在 `/etc/nginx/conf.d/mahate.conf` 的 HTTPS server 块中一次性添加：
+
+```nginx
+include /etc/nginx/snippets/arvello-logs.conf;
 ```
 
-私钥或端口与默认不同则按现有 SSH 连接方式增加 `-i`、`-p` 参数。
-保持终端连接，浏览器打开 `http://127.0.0.1:9999`，选择 `arvello-backend`。
-可以看到近期控制台日志及不断新增的日志；无需额外登录网页，访问由 SSH 身份验证保护。
-不方便建立隧道时仍可在服务器执行 `docker logs -f --tail=200 arvello-backend`。
+当前服务器已配置此入口。后续部署自动更新该片段；新增服务器时需安装 Nginx、
+配置域名证书并添加同样的 include。`nginx-location.conf` 保留 `/logs` 前缀，
+关闭代理缓冲以保证日志实时推送。
 
-网页只监听服务器回环地址，不能使用公网 IP 直接访问。Dozzle 读取 Docker socket，
-即使 socket 挂载标记为 `ro` 也不构成 Docker API 权限隔离，因此不要把 9999 端口
-开放到公网，或将此网页反向代理为无认证的公共页面。
+Dozzle 读取 Docker socket；`ro` 挂载不构成 Docker API 权限隔离。不要将 9999
+端口开放到公网，也不要关闭网页认证。服务器终端仍可直接执行
+`docker logs -f --tail=200 arvello-backend` 查看日志。
 
 ## 日志范围
 
@@ -52,7 +62,7 @@ Dozzle 的数据卷仅持久保存自身设置，不是日志备份。需要跨�
 cd /home/admin/deploy/logs
 docker compose ps
 docker compose logs --tail=100 dozzle
-curl --fail http://127.0.0.1:9999/healthcheck
+curl --fail http://127.0.0.1:9999/logs/healthcheck
 docker stats --no-stream
 ```
 
@@ -61,11 +71,12 @@ docker stats --no-stream
 ```bash
 cd /home/admin/deploy
 docker compose --env-file elk/.env -f elk/compose.yml stop
-docker compose -f logs/compose.yml up -d --no-build --pull never
+python3 logs/init-auth.py
+docker compose -f logs/compose.yml up -d --no-build --pull never --force-recreate
 ```
 
 没有部署过 ELK 时省略停止 ELK 的命令。镜像尚未加载且服务器能够访问 GHCR 时，
-可在 `logs` 目录直接执行 `docker compose up -d` 下载并启动。
+可先在 `logs` 目录执行 `docker compose pull`，再初始化账户并启动。
 
 启动失败时先检查上述容器日志与 `free -h`，不要同时重新启动旧 ELK。
 停止日志网页使用 `docker compose stop`，不影响后端和已有应用日志文件。

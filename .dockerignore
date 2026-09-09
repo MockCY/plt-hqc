@@ -3,6 +3,8 @@ target
 .git
 deploy/.env
 deploy/elk/.env
+deploy/logs/users.yml
+deploy/logs/.users-*
 *.iml
 *.log
 data

@@ -2,6 +2,7 @@
 
 当前默认使用 [Dozzle 轻量日志网页](logs/README.md)，内存上限为 128 MB，适合现有
 2 GB 服务器查看后端日志。自动部署会启动 Dozzle 并停止旧 ELK，保留已有日志卷。
+浏览器直接打开 `https://manhart.top/logs/`，使用部署配置里的管理员凭据登录。
 后端仍将 ECS JSON 日志写入持久卷 `arvello-backend-logs`。
 原 [ELK 配置](elk/README.md) 保留供以后扩容时参考。
 

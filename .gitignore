@@ -8,3 +8,6 @@ data/
 chen0226
 chen0226.pub
 .env.test
+deploy/logs/users.yml
+deploy/logs/.users-*
+__pycache__/

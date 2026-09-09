@@ -7,6 +7,9 @@ services:
     mem_limit: 128m
     environment:
       GOMEMLIMIT: 96MiB
+      DOZZLE_BASE: /logs
+      DOZZLE_AUTH_PROVIDER: simple
+      DOZZLE_AUTH_TTL: 12h
       DOZZLE_FILTER: name=arvello-backend
       DOZZLE_ENABLE_ACTIONS: "false"
       DOZZLE_ENABLE_SHELL: "false"
@@ -16,6 +19,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - dozzle-data:/data
+      - ./users.yml:/data/users.yml:ro
     ports:
       - "127.0.0.1:9999:8080"
     healthcheck:
@@ -32,7 +36,3 @@ services:
 
 volumes:
   dozzle-data:
-
-networks:
-  default:
-    internal: true
