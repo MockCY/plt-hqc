@@ -1,5 +1,10 @@
 # ARVELLO sensor integration
 
+# 当前版本
+
+固件 4.0.0 的接入、部署迁移、摘要幂等和训练统计以 [SENSOR_V4.md](SENSOR_V4.md) 为准。下文保留 V3 设备协议及既有接入说明；V4 后端继续兼容 V3。
+
+
 ## Implemented behavior
 
 The existing `devices` table represents beds/equipment. `sensor_devices` represents ESP32 units.
@@ -142,11 +147,9 @@ Disable and unbind close active sessions at last motion, retain history, and wri
 same transaction. Disable retains the binding. No additional migration is required beyond sensor migrations 30/31.
 The admin interface separates device training from course viewing and links from users and beds.
 
-## Verification commands
+## Build verification
 
-Backend Java test classes were removed at the project owner's request. Maven no longer runs the
-sensor authentication, training-window or database regression tests. Compile/package validation
-should run in a separate checkout when the IDE backend is running; do not clean its active target directory.
-Client protocol tests: Node 22 `--test we-plt/scripts/sensor-protocol.test.mjs`.
-Responsive browser tests: `we-plt/scripts/capture-sensor.mjs` against the local H5 preview on port 5194,
-with mocked sensor API responses. These screenshots do not prove physical BLE connectivity.
+Backend Java test classes, client test scripts, and local browser QA fixtures were removed at the
+project owner's request. Compile/package validation should run in a separate checkout when the
+IDE backend is running; do not clean its active target directory. Build validation does not prove
+physical BLE connectivity.

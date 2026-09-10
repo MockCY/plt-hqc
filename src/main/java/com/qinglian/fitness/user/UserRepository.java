@@ -13,9 +13,10 @@ import java.util.Optional;
 public class UserRepository {
 
     private final UserMapper userMapper;
+    private final com.qinglian.fitness.sensor.SensorOwnershipService sensors;
 
-    public UserRepository(UserMapper userMapper) {
-        this.userMapper = userMapper;
+    public UserRepository(UserMapper userMapper,com.qinglian.fitness.sensor.SensorOwnershipService sensors) {
+        this.userMapper = userMapper; this.sensors=sensors;
     }
 
     public Optional<User> findByOpenId(String openId) {
@@ -76,6 +77,7 @@ public class UserRepository {
 
     @Transactional
     public void deleteById(long userId) {
+        sensors.releaseUser(userId);
         userMapper.recordDeviceUnbinding(userId);
         userMapper.deleteCustomCourses(userId);
         userMapper.deleteFavorites(userId);

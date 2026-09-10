@@ -11,6 +11,6 @@ public final class TrainingWindow {
         return !now.isBefore(lastMotion.plus(PAUSE));
     }
     public static long elapsedMs(Instant start, Instant lastMotion) {
-        return Math.max(0, Duration.between(start, lastMotion).toMillis());
+        return start==null || lastMotion==null?0:Math.max(0, Duration.between(start, lastMotion).toMillis());
     }
 }

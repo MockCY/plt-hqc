@@ -28,7 +28,8 @@ public class SensorService {
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter
         .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").withZone(ZoneId.of("Asia/Shanghai"));
     // Keep active sessions and any completed session with a repetition or a visible second.
-    static final String VISIBLE_WORKOUT = "(w.status='ACTIVE' or w.end_count>w.start_count or w.last_motion_at>=timestampadd(second,1,w.started_at))";
+    static final String DURATION_SQL = "case when w.schema_version=4 then coalesce(w.active_duration_ms,0) else greatest(0,timestampdiff(microsecond,w.started_at,w.last_motion_at) div 1000) end";
+    static final String VISIBLE_WORKOUT = "(w.status='ACTIVE' or w.end_count>w.start_count or (w.schema_version=4 and w.active_duration_ms>=5000) or (w.schema_version=3 and w.last_motion_at>=timestampadd(second,1,w.started_at)))";
     private final JdbcTemplate db;
     private final ObjectMapper json;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -59,7 +60,7 @@ public class SensorService {
         return rows.isEmpty() ? null : rows.getFirst();
     }
     static long number(Map<String,Object> row, String key) { return ((Number)row.get(key)).longValue(); }
-    static Instant instant(Map<String,Object> row, String key) { return ((LocalDateTime)row.get(key)).toInstant(ZoneOffset.UTC); }
+    static Instant instant(Map<String,Object> row, String key) { return row.get(key)==null?null:((LocalDateTime)row.get(key)).toInstant(ZoneOffset.UTC); }
     static LocalDateTime utc(Instant value) { return LocalDateTime.ofInstant(value,ZoneOffset.UTC); }
     static boolean flag(Map<String,Object> row, String key) {
         Object v = row.get(key); return Boolean.TRUE.equals(v) || v instanceof Number n && n.intValue() != 0;
@@ -74,7 +75,7 @@ public class SensorService {
         if (id == null || !id.matches("ARVELLO-[A-F0-9]{12}"))
             throw error(HttpStatus.BAD_REQUEST,"INVALID_DEVICE_ID","设备编号格式不正确");
     }
-    private Map<String,Object> ensureDevice(String id) {
+    Map<String,Object> ensureDevice(String id) {
         validateDeviceId(id);
         String mac = id.substring(8);
         String code = "AVS-" + mac.substring(0,4) + "-" + mac.substring(4,8) + "-" + mac.substring(8);
@@ -173,6 +174,8 @@ public class SensorService {
         Instant now = Instant.now(); LocalDateTime at = utc(now);
         Map<String,Object> previous = one("select * from sensor_latest_readings where sensor_id=?",sensorId);
         boolean sameBoot = previous != null && r.bootId().equals(previous.get("boot_id"));
+        if (sameBoot && number(previous,"schema_version")!=3)
+            throw error(HttpStatus.CONFLICT,"PROTOCOL_CHANGED","切换协议版本时必须更新 bootId");
         if (sameBoot && r.sequence() <= number(previous,"sequence_number")) {
             log.debug("SENSOR_DUPLICATE deviceId={} bootId={} sequence={} latestSequence={}",id,r.bootId(),r.sequence(),previous.get("sequence_number"));
             return Map.of("ok",true,"duplicate",true,"deviceId",id,"receivedAt",instant(previous,"received_at"));
@@ -185,12 +188,12 @@ public class SensorService {
         }
         if (sameBoot && r.repetitionCount() < number(previous,"repetition_count"))
             throw error(HttpStatus.CONFLICT,"COUNTER_RESET","清零计数时必须更新 bootId");
-        int expired = db.update("update sensor_workout_sessions set status='COMPLETED',ended_at=last_motion_at,end_reason='IDLE' where sensor_id=? and status='ACTIVE' and last_motion_at<=?",
+        int expired = db.update("update sensor_workout_sessions set status='COMPLETED',training_state='idle',ended_at=last_motion_at,end_reason='IDLE' where sensor_id=? and schema_version=3 and status='ACTIVE' and last_motion_at<=?",
             sensorId,utc(now.minus(TrainingWindow.PAUSE)));
         if (expired > 0) committed("SENSOR_TRAINING_ENDED deviceId={} reason=IDLE endedAt=last_motion_at",id);
-        Map<String,Object> binding = one("select b.id,b.bed_id,u.user_id from sensor_device_bindings b join user_device_selections u on u.device_id=b.bed_id where b.sensor_id=? and b.unbound_at is null",sensorId);
+        Map<String,Object> binding = one("select b.id,b.bed_id,u.user_id from sensor_device_bindings b join user_device_selections u on u.device_id=b.bed_id and u.user_id=b.user_id where b.sensor_id=? and b.unbound_at is null",sensorId);
         Map<String,Object> session = one("select * from sensor_workout_sessions where sensor_id=? and status='ACTIVE' for update",sensorId);
-        if (session != null && (!sameBoot || binding == null || number(binding,"user_id") != number(session,"user_id"))) {
+        if (session != null && (number(session,"schema_version")!=3 || !sameBoot || binding == null || number(binding,"user_id") != number(session,"user_id"))) {
             close(number(session,"id"),"INTERRUPTED"); session = null;
         }
         boolean motion = Boolean.TRUE.equals(r.sensorOk()) && Boolean.TRUE.equals(r.moving());
@@ -205,7 +208,7 @@ public class SensorService {
                 r.repetitionCount(),motion ? at : utc(instant(session,"last_motion_at")),number(session,"id"));
             if (r.standby()) close(number(session,"id"),"STANDBY");
         }
-        db.update("insert into sensor_latest_readings(sensor_id,boot_id,sequence_number,repetition_count,moving,standby,sensor_ok,payload_json,received_at) values(?,?,?,?,?,?,?,?,?) on duplicate key update boot_id=values(boot_id),sequence_number=values(sequence_number),repetition_count=values(repetition_count),moving=values(moving),standby=values(standby),sensor_ok=values(sensor_ok),payload_json=values(payload_json),received_at=values(received_at)",
+        db.update("insert into sensor_latest_readings(sensor_id,boot_id,sequence_number,repetition_count,moving,standby,sensor_ok,payload_json,received_at) values(?,?,?,?,?,?,?,?,?) on duplicate key update boot_id=values(boot_id),sequence_number=values(sequence_number),repetition_count=values(repetition_count),moving=values(moving),standby=values(standby),sensor_ok=values(sensor_ok),payload_json=values(payload_json),received_at=values(received_at),schema_version=3,training_state=null",
             sensorId,r.bootId(),r.sequence(),r.repetitionCount(),r.moving(),r.standby(),r.sensorOk(),json.writeValueAsString(r),at);
         db.update("update sensor_devices set last_seen_at=? where id=?",at,sensorId);
         committed("SENSOR_READING deviceId={} bootId={} sequence={} moving={} standby={} sensorOk={} totalCount={} bound={} receivedAt={}",
@@ -213,38 +216,53 @@ public class SensorService {
         return Map.of("ok",true,"deviceId",id,"receivedAt",now);
     }
     private void close(long session, String reason) {
-        int changed = db.update("update sensor_workout_sessions set status='COMPLETED',ended_at=last_motion_at,end_reason=? where id=? and status='ACTIVE'",reason,session);
+        int changed = db.update("update sensor_workout_sessions set status='COMPLETED',training_state='idle',ended_at=last_motion_at,end_reason=? where id=? and status='ACTIVE'",reason,session);
         if (changed > 0) committed("SENSOR_TRAINING_ENDED sessionId={} reason={} endedAt=last_motion_at",session,reason);
     }
     public void expire() {
-        int expired = db.update("update sensor_workout_sessions set status='COMPLETED',ended_at=last_motion_at,end_reason='IDLE' where status='ACTIVE' and last_motion_at<=?",utc(Instant.now().minus(TrainingWindow.PAUSE)));
+        int expired = db.update("update sensor_workout_sessions set status='COMPLETED',training_state='idle',ended_at=last_motion_at,end_reason='IDLE' where schema_version=3 and status='ACTIVE' and last_motion_at<=?",utc(Instant.now().minus(TrainingWindow.PAUSE)));
         if (expired > 0) committed("SENSOR_TRAINING_EXPIRED sessions={} idleSeconds=180 endedAt=last_motion_at",expired);
+        // V4 owns its five-minute idle boundary; a summary can still finalize the same row later.
+        db.update("update sensor_workout_sessions set status='COMPLETED',training_state='idle',ended_at=last_motion_at,end_reason='IDLE' where schema_version=4 and status='ACTIVE' and last_motion_at<=?",utc(Instant.now().minusSeconds(300)));
         db.update("delete from sensor_binding_challenges where expires_at<?",utc(Instant.now().minusSeconds(3600)));
     }
 
-    private Map<String,Object> sessionView(Map<String,Object> row) {
+    static Map<String,Object> sessionView(Map<String,Object> row) {
         Map<String,Object> v = new LinkedHashMap<>();
         v.put("id",number(row,"id")); v.put("startedAt",instant(row,"started_at"));
         v.put("lastMotionAt",instant(row,"last_motion_at"));
         v.put("endedAt",row.get("ended_at") == null ? null : instant(row,"ended_at"));
         v.put("status",row.get("status")); v.put("endReason",row.get("end_reason"));
-        v.put("durationMs",TrainingWindow.elapsedMs(instant(row,"started_at"),instant(row,"last_motion_at")));
+        v.put("durationMs",sessionDuration(row));
+        v.put("schemaVersion",row.get("schema_version")); v.put("deviceSessionId",row.get("device_session_id"));
+        v.put("activeDurationMs",row.get("active_duration_ms")); v.put("trainingState",row.get("training_state"));
+        v.put("timeValid",flag(row,"time_valid")); v.put("timeQuality",row.get("time_quality"));
+        v.put("ownershipStatus",row.get("ownership_status")); v.put("averagePeriodMs",row.get("average_period_ms"));
+        v.put("minPeriodMs",row.get("min_period_ms")); v.put("maxPeriodMs",row.get("max_period_ms"));
+        v.put("summaryReceived",flag(row,"summary_received"));
         v.put("repetitionCount",Math.max(0,number(row,"end_count")-number(row,"start_count")));
         return v;
     }
+    static long sessionDuration(Map<String,Object> row) {
+        return row.get("active_duration_ms")!=null?number(row,"active_duration_ms"):TrainingWindow.elapsedMs(instant(row,"started_at"),instant(row,"last_motion_at"));
+    }
     public Map<String,Object> latest(long user, String sn) {
         long bed = ownedBed(user,sn);
-        Map<String,Object> binding = one("select b.id,b.sensor_id,s.device_id,s.device_code from sensor_device_bindings b join sensor_devices s on s.id=b.sensor_id where bed_id=? and unbound_at is null",bed);
+        Map<String,Object> binding = one("select b.id,b.sensor_id,s.device_id,s.device_code,s.serial_number,s.model,s.firmware_version from sensor_device_bindings b join sensor_devices s on s.id=b.sensor_id where bed_id=? and b.user_id=? and unbound_at is null",bed,user);
         if (binding == null) return Map.of("ok",true,"bound",false,"bedSn",sn);
         Map<String,Object> v = new LinkedHashMap<>(); v.put("ok",true); v.put("bound",true); v.put("bedSn",sn);
+        v.put("serialNumber",binding.get("serial_number")); v.put("model",binding.get("model")); v.put("firmwareVersion",binding.get("firmware_version"));
         v.put("bindingId",number(binding,"id")); v.put("deviceId",binding.get("device_id")); v.put("deviceCode",binding.get("device_code"));
         long sensor = number(binding,"sensor_id");
         Map<String,Object> reading = one("select * from sensor_latest_readings where sensor_id=?",sensor);
-        v.put("state","WAITING"); v.put("receivedAt",null);
+        v.put("state","WAITING"); v.put("online",false); v.put("receivedAt",null);
         if (reading != null) {
-            boolean online = instant(reading,"received_at").isAfter(Instant.now().minusSeconds(10));
+            boolean online = instant(reading,"received_at").isAfter(Instant.now().minusSeconds(90));
             v.put("online",online); v.put("receivedAt",instant(reading,"received_at"));
-            v.put("state",flag(reading,"standby") ? "STANDBY" : !online ? "OFFLINE" : !flag(reading,"sensor_ok") ? "ERROR" : flag(reading,"moving") ? "MOVING" : "STILL");
+            var payload=json.readTree(reading.get("payload_json").toString());
+            for (String key:List.of("schemaVersion","trainingState","sessionId","repetitionCount","sessionRepetitionCount","activeDurationMs","averagePeriodMs","minPeriodMs","maxPeriodMs","batteryAvailable","batteryPercent","batteryVoltage","charging","batteryFull","faultMask","sensorOk","cachedSessionCount","timeValid"))
+                if (payload.has(key)) v.put(key,payload.get(key));
+            v.put("state",flag(reading,"standby") ? "STANDBY" : !online ? "OFFLINE" : !flag(reading,"sensor_ok") ? "ERROR" : "paused".equals(reading.get("training_state")) ? "PAUSED" : flag(reading,"moving") ? "MOVING" : "STILL");
         }
         Map<String,Object> session = one("select w.* from sensor_workout_sessions w where sensor_id=? and bed_id=? and user_id=? and "+VISIBLE_WORKOUT+" order by id desc limit 1",sensor,bed,user);
         v.put("session",session == null ? null : sessionView(session));
@@ -254,7 +272,7 @@ public class SensorService {
         long bed = ownedBed(user,sn);
         List<Map<String,Object>> rows = db.queryForList("select w.* from sensor_workout_sessions w where bed_id=? and user_id=? and id<? and "+VISIBLE_WORKOUT+" order by id desc limit 21",bed,user,before == null ? Long.MAX_VALUE : before);
         boolean more = rows.size()>20;
-        List<Map<String,Object>> items = rows.stream().limit(20).map(this::sessionView).toList();
+        List<Map<String,Object>> items = rows.stream().limit(20).map(SensorService::sessionView).toList();
         Map<String,Object> result = new LinkedHashMap<>(); result.put("items",items);
         result.put("nextCursor",more ? items.getLast().get("id") : null); return result;
     }
@@ -276,10 +294,10 @@ public class SensorService {
 
     public Map<String,Object> trainingStats(long user) {
         String where = " from sensor_workout_sessions w where w.user_id=? and "+VISIBLE_WORKOUT;
-        var totals = db.queryForMap("select coalesce(sum(w.status='COMPLETED'),0) completed_count,coalesce(sum(greatest(0,timestampdiff(microsecond,w.started_at,w.last_motion_at) div 1000)),0) duration_ms,coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions"+where,user);
+        var totals = db.queryForMap("select coalesce(sum(w.status='COMPLETED'),0) completed_count,coalesce(sum("+DURATION_SQL+"),0) duration_ms,coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions"+where,user);
         Set<LocalDate> days = new HashSet<>();
         // Sensor timestamps are stored in UTC; count each Beijing calendar day touched by training.
-        db.query("select distinct date(timestampadd(hour,8,w.started_at)) first_day,date(timestampadd(hour,8,w.last_motion_at)) last_day"+where+" and (w.end_count>w.start_count or w.last_motion_at>w.started_at)", rs -> {
+        db.query("select distinct date(timestampadd(hour,8,w.started_at)) first_day,date(timestampadd(hour,8,w.last_motion_at)) last_day"+where+" and w.time_valid=1 and w.started_at is not null and w.last_motion_at is not null and (w.end_count>w.start_count or "+DURATION_SQL+">0)", rs -> {
             LocalDate first = rs.getDate("first_day").toLocalDate();
             LocalDate last = rs.getDate("last_day").toLocalDate();
             for (LocalDate day=first; !day.isAfter(last); day=day.plusDays(1)) days.add(day);
@@ -303,7 +321,7 @@ public class SensorService {
         if (one("select user_id from user_device_selections where user_id=? and device_id=?",user,number(b,"bed_id")) == null)
             throw error(HttpStatus.FORBIDDEN,"BED_NOT_OWNED","无权解绑这台核心床的传感器");
         db.update("update sensor_device_bindings set unbound_at=? where id=?",utc(Instant.now()),bindingId);
-        db.update("update sensor_workout_sessions set status='COMPLETED',ended_at=last_motion_at,end_reason='UNBOUND' where sensor_id=? and status='ACTIVE'",number(b,"sensor_id"));
+        db.update("update sensor_workout_sessions set status='COMPLETED',training_state='idle',ended_at=last_motion_at,end_reason='UNBOUND' where sensor_id=? and status='ACTIVE'",number(b,"sensor_id"));
         db.update("delete from sensor_binding_challenges where sensor_id=?",number(b,"sensor_id"));
         committed("SENSOR_UNBOUND bindingId={} sensorId={} bedId={} userId={}",bindingId,b.get("sensor_id"),b.get("bed_id"),user);
     }

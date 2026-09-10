@@ -16,12 +16,12 @@ public class AdminSensorService {
     private final tools.jackson.databind.ObjectMapper json;
     public AdminSensorService(JdbcTemplate db,tools.jackson.databind.ObjectMapper json) { this.db=db; this.json=json; }
     private static final String DEVICES = """
-        select s.id,s.device_id,s.device_code,s.status,s.created_at,s.last_seen_at,
+        select s.id,s.device_id,s.device_code,s.serial_number,s.model,s.firmware_version,s.status,s.created_at,s.last_seen_at,
          b.id binding_id,b.bed_id,b.bound_at,d.serial_number bed_sn,u.id user_id,u.nickname user_name,u.phone user_phone,
-         l.boot_id,l.sequence_number,l.repetition_count,l.moving,l.standby,l.sensor_ok,l.received_at,
+         l.boot_id,l.sequence_number,l.repetition_count,l.moving,l.standby,l.sensor_ok,l.received_at,l.schema_version,l.training_state,
          case when s.status<>'ACTIVE' then 'DISABLED' when l.sensor_id is null then 'WAITING'
-          when l.standby=1 then 'STANDBY' when l.received_at<=utc_timestamp(3)-interval 10 second then 'OFFLINE'
-          when l.sensor_ok=0 then 'ERROR' when l.moving=1 then 'MOVING' else 'STILL' end state
+          when l.standby=1 then 'STANDBY' when l.received_at<=utc_timestamp(3)-interval 90 second then 'OFFLINE'
+          when l.sensor_ok=0 then 'ERROR' when l.training_state='paused' then 'PAUSED' when l.moving=1 then 'MOVING' else 'STILL' end state
         from sensor_devices s left join sensor_device_bindings b on b.sensor_id=s.id and b.unbound_at is null
         left join devices d on d.id=b.bed_id left join user_device_selections own on own.device_id=b.bed_id
         left join users u on u.id=own.user_id left join sensor_latest_readings l on l.sensor_id=s.id
@@ -31,7 +31,13 @@ public class AdminSensorService {
         left join devices d on d.id=w.bed_id left join users u on u.id=w.user_id
         """;
     private static final Map<String,String> FIELDS = Map.ofEntries(
-        Map.entry("device_id","deviceId"),Map.entry("device_code","deviceCode"),Map.entry("created_at","createdAt"),
+        Map.entry("serial_number","serialNumber"),Map.entry("firmware_version","firmwareVersion"),
+        Map.entry("schema_version","schemaVersion"),Map.entry("device_session_id","deviceSessionId"),
+        Map.entry("active_duration_ms","activeDurationMs"),Map.entry("training_state","trainingState"),
+        Map.entry("time_valid","timeValid"),Map.entry("time_quality","timeQuality"),Map.entry("ownership_status","ownershipStatus"),
+        Map.entry("average_period_ms","averagePeriodMs"),Map.entry("min_period_ms","minPeriodMs"),Map.entry("max_period_ms","maxPeriodMs"),
+        Map.entry("summary_received","summaryReceived"),Map.entry("start_uptime_ms","startUptimeMs"),Map.entry("end_uptime_ms","endUptimeMs"),
+        Map.entry("last_received_at","lastReceivedAt"),Map.entry("device_id","deviceId"),Map.entry("device_code","deviceCode"),Map.entry("created_at","createdAt"),
         Map.entry("last_seen_at","lastSeenAt"),Map.entry("binding_id","bindingId"),Map.entry("bed_id","bedId"),
         Map.entry("bed_sn","bedSn"),Map.entry("bound_at","boundAt"),Map.entry("unbound_at","unboundAt"),
         Map.entry("user_id","userId"),Map.entry("user_name","userName"),Map.entry("user_phone","userPhone"),
@@ -41,9 +47,12 @@ public class AdminSensorService {
         Map.entry("start_count","startCount"),Map.entry("end_count","endCount"),Map.entry("end_reason","endReason"));
     private Map<String,Object> view(Map<String,Object> row) {
         Map<String,Object> result=new LinkedHashMap<>();
-        row.forEach((key,value)->result.put(FIELDS.getOrDefault(key,key),value instanceof LocalDateTime t ? t.toInstant(ZoneOffset.UTC) : value));
+        row.forEach((key,value)-> {
+            if (!key.equals("summary_payload_json") && !key.equals("active_sensor"))
+                result.put(FIELDS.getOrDefault(key,key),value instanceof LocalDateTime t ? t.toInstant(ZoneOffset.UTC) : value);
+        });
         if (row.containsKey("started_at")) {
-            result.put("durationMs",TrainingWindow.elapsedMs(instant(row,"started_at"),instant(row,"last_motion_at")));
+            result.put("durationMs",sessionDuration(row));
             result.put("repetitionCount",Math.max(0,number(row,"end_count")-number(row,"start_count")));
         }
         return result;
@@ -74,7 +83,7 @@ public class AdminSensorService {
         return new PageResult<>(db.queryForList(select+from+where+order+" limit ? offset ?",paged.toArray()).stream().map(this::view).toList(),count,page,size);
     }
     public PageResult<Map<String,Object>> sensors(String query,String state,String binding,Long bedId,Long userId,int page,int size) {
-        state=option(state,Set.of("ALL","WAITING","MOVING","STILL","ERROR","OFFLINE","STANDBY","DISABLED"));
+        state=option(state,Set.of("ALL","WAITING","MOVING","STILL","ERROR","OFFLINE","STANDBY","DISABLED","PAUSED"));
         binding=option(binding,Set.of("ALL","BOUND","UNBOUND"));
         StringBuilder where=new StringBuilder(" where 1=1"); List<Object> args=new ArrayList<>();
         search(query,"device_id,device_code,bed_sn,user_name,user_phone,user_id",where,args);
@@ -92,7 +101,7 @@ public class AdminSensorService {
         if (!latest.isEmpty()) {
             var payload=json.readTree(latest.getFirst().get("payload_json").toString());
             Map<String,Object> telemetry=new LinkedHashMap<>();
-            for (String key:List.of("uptimeMs","countType","motionAxis","motionAxisG","accelG","gyroDps","activityG"))
+            for (String key:List.of("uptimeMs","countType","motionAxis","motionAxisG","accelG","gyroDps","activityG","schemaVersion","trainingState","sessionId","sessionRepetitionCount","activeDurationMs","averagePeriodMs","minPeriodMs","maxPeriodMs","batteryAvailable","batteryPercent","batteryVoltage","charging","batteryFull","faultMask","cachedSessionCount","timeValid"))
                 if (payload.has(key)) telemetry.put(key,payload.get(key));
             result.put("telemetry",telemetry);
         }
@@ -114,9 +123,9 @@ public class AdminSensorService {
         ZoneId zone=ZoneId.of("Asia/Shanghai");
         if (from!=null) { where.append(" and w.started_at>=?"); args.add(utc(from.atStartOfDay(zone).toInstant())); }
         if (to!=null) { where.append(" and w.started_at<?"); args.add(utc(to.plusDays(1).atStartOfDay(zone).toInstant())); }
-        var records=page("select w.id,w.sensor_id,w.bed_id,w.user_id,w.started_at,w.last_motion_at,w.ended_at,w.start_count,w.end_count,w.status,w.end_reason,s.device_id,s.device_code,d.serial_number bed_sn,u.nickname user_name,u.phone user_phone ",
+        var records=page("select w.*,s.device_id,s.device_code,d.serial_number bed_sn,u.nickname user_name,u.phone user_phone ",
             WORKOUTS,where.toString(),args," order by w.id desc",page,size);
-        var sum=db.queryForMap("select coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions,coalesce(sum(greatest(0,timestampdiff(microsecond,w.started_at,w.last_motion_at)/1000)),0) durationMs,coalesce(sum(w.status='ACTIVE'),0) activeSessions "+WORKOUTS+where,args.toArray());
+        var sum=db.queryForMap("select coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions,coalesce(sum("+DURATION_SQL+"),0) durationMs,coalesce(sum(w.status='ACTIVE'),0) activeSessions "+WORKOUTS+where,args.toArray());
         return Map.of("items",records.items(),"total",records.total(),"page",page,"pageSize",size,"summary",sum);
     }
     private void lock(long id) {
@@ -142,7 +151,7 @@ public class AdminSensorService {
         if (status.equals("DISABLED")) end(id,"DISABLED");
     }
     private void end(long id,String reason) {
-        db.update("update sensor_workout_sessions set status='COMPLETED',ended_at=last_motion_at,end_reason=? where sensor_id=? and status='ACTIVE'",reason,id);
+        db.update("update sensor_workout_sessions set status='COMPLETED',training_state='idle',ended_at=last_motion_at,end_reason=? where sensor_id=? and status='ACTIVE'",reason,id);
         db.update("delete from sensor_binding_challenges where sensor_id=?",id);
     }
 }

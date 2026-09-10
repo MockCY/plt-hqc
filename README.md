@@ -1,7 +1,8 @@
 # ARVELLO 微信健身小程序后端
 
 传感器接入与部署见 [SENSOR_INTEGRATION.md](SENSOR_INTEGRATION.md)。新版传感器功能需先执行
-`database/30-sensor-iot.sql` 和 `database/31-sensor-keyless.sql`；设备首次连接自动登记，无需设备密钥。
+`database/30-sensor-iot.sql`、`database/31-sensor-keyless.sql` 和 `database/33-sensor-v4.sql`；设备首次连接自动登记，无需设备密钥。
+固件 `4.0.0` 使用协议 `schemaVersion: 4`，后端同时保留 V3 接收。新建数据库的 `01-schema.sql` 已包含 V4 字段，不要重复执行 `33`。现有数据库必须先执行 `33` 再启动新版服务，应用不会自动迁移。详见 [V4 协议及统计规则](SENSOR_V4.md)。
 课程观看时间与传感器训练时间分别统计。
 
 这是 `we-plt` 健身微信小程序的 Java 后端，采用 Spring Boot + JDBC + MySQL。

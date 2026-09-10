@@ -11,14 +11,41 @@ import java.util.Map;
 @RestController
 public class SensorController {
     private final SensorService service;
-    public SensorController(SensorService service) { this.service = service; }
+    private final SensorV4Service v4;
+    private final tools.jackson.databind.ObjectMapper json;
+    private final jakarta.validation.Validator validator;
+    public SensorController(SensorService service,SensorV4Service v4,tools.jackson.databind.ObjectMapper json,jakarta.validation.Validator validator) {
+        this.service=service; this.v4=v4; this.json=json; this.validator=validator;
+    }
     @GetMapping("/api/v1/sensor/health")
     public Map<String,Object> health() { return Map.of("ok",true,"service","arvello-server","time",Instant.now()); }
     @PostMapping("/api/v1/sensor/readings") @ResponseStatus(HttpStatus.ACCEPTED)
     public Map<String,Object> receive(@RequestHeader(value="X-Device-Id",required=false) String id,
-        @Valid @RequestBody SensorDtos.Reading body) {
-        return service.receive(id,body);
+        @RequestBody tools.jackson.databind.JsonNode body) {
+        if (!body.isObject() || !body.has("schemaVersion") || !body.get("schemaVersion").isIntegralNumber())
+            throw SensorService.error(HttpStatus.BAD_REQUEST,"INVALID_PAYLOAD","必须提供协议版本");
+        int version=body.get("schemaVersion").asInt();
+        String type=body.path("recordType").asText("");
+        if (version==3 && (type.isEmpty() || type.equals("telemetry")))
+            return service.receive(id,payload(body,SensorDtos.Reading.class));
+        if (version==4 && type.equals("telemetry")) return v4.telemetry(id,payload(body,SensorV4Dtos.Telemetry.class));
+        if (version==4 && type.equals("training_summary")) return v4.summary(id,payload(body,SensorV4Dtos.Summary.class));
+        throw SensorService.error(HttpStatus.BAD_REQUEST,"UNSUPPORTED_RECORD","不支持的协议版本或记录类型");
     }
+    private <T> T payload(tools.jackson.databind.JsonNode body,Class<T> type) {
+        T value;
+        try { value=json.treeToValue(body,type); }
+        catch (RuntimeException e) { throw SensorService.error(HttpStatus.BAD_REQUEST,"INVALID_PAYLOAD","传感器字段类型不正确"); }
+        var errors=validator.validate(value);
+        if (!errors.isEmpty()) {
+            var first=errors.iterator().next();
+            throw SensorService.error(HttpStatus.BAD_REQUEST,"VALIDATION_ERROR",first.getPropertyPath()+"："+first.getMessage());
+        }
+        return value;
+    }
+    @PostMapping("/api/v1/device/register")
+    public Map<String,Object> deviceRegister(@RequestHeader(value="X-Device-Id",required=false) String id,
+        @Valid @RequestBody SensorV4Dtos.Registration body) { return v4.register(id,body); }
     @PostMapping("/api/v1/sensor/claim-confirm")
     public Map<String,Object> confirm(@RequestHeader(value="X-Device-Id",required=false) String id,
         @Valid @RequestBody SensorDtos.Confirm body) {

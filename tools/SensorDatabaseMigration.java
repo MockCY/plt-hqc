@@ -10,9 +10,9 @@ import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 public class SensorDatabaseMigration {
     static final Map<String, Integer> TABLES = Map.of(
-        "sensor_devices", 8, "sensor_device_bindings", 8,
-        "sensor_binding_challenges", 7, "sensor_latest_readings", 9,
-        "sensor_boots", 3, "sensor_workout_sessions", 13);
+        "sensor_devices", 11, "sensor_device_bindings", 8,
+        "sensor_binding_challenges", 7, "sensor_latest_readings", 11,
+        "sensor_boots", 3, "sensor_workout_sessions", 29);
 
     public static void main(String[] args) throws Exception {
         boolean apply = args.length == 1 && args[0].equals("--apply");
@@ -63,6 +63,9 @@ public class SensorDatabaseMigration {
 
             ScriptUtils.executeSqlScript(db, new FileSystemResource("database/30-sensor-iot.sql"));
             ScriptUtils.executeSqlScript(db, new FileSystemResource("database/31-sensor-keyless.sql"));
+            try (var columns=db.getMetaData().getColumns(db.getCatalog(),null,"sensor_workout_sessions","schema_version")) {
+                if (!columns.next()) ScriptUtils.executeSqlScript(db,new FileSystemResource("database/33-sensor-v4.sql"));
+            }
             }
             for (String table : new TreeSet<>(TABLES.keySet())) {
                 int columns = 0;
@@ -77,7 +80,7 @@ public class SensorDatabaseMigration {
                         (!ddl.contains("uk_sensor_active") || !ddl.contains("uk_bed_active") || !ddl.contains("FOREIGN KEY")))
                         throw new SQLException("Missing binding constraints");
                     if (table.equals("sensor_workout_sessions") &&
-                        (!ddl.contains("uk_workout_active") || !ddl.contains("idx_workout_expiry")))
+                        (!ddl.contains("uk_workout_active") || !ddl.contains("idx_workout_expiry") || !ddl.contains("uk_workout_device_session")))
                         throw new SQLException("Missing workout constraints");
                 }
                 System.out.println(table + "=verified, columns=" + columns);

@@ -1,12 +1,6 @@
 -- 使用服务器上已有的业务数据库，不创建新的数据库。
 USE hqc_plt;
 
-    focus_image_url VARCHAR(500) NULL,
-    focus_parts VARCHAR(100) NULL,
-    spring_sets JSON NULL,
-    key_points TEXT NULL,
-    common_mistakes TEXT NULL,
-    instruction_audio_url VARCHAR(500) NULL,
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     openid VARCHAR(64) NOT NULL,
@@ -102,6 +96,12 @@ CREATE TABLE IF NOT EXISTS exercises (
     video_cover_image VARCHAR(500) NULL,
     video_duration_seconds INT NULL,
     background_music_url VARCHAR(500) NULL,
+    focus_image_url VARCHAR(500) NULL,
+    focus_parts VARCHAR(100) NULL,
+    spring_sets JSON NULL,
+    key_points TEXT NULL,
+    common_mistakes TEXT NULL,
+    instruction_audio_url VARCHAR(500) NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -357,7 +357,10 @@ CREATE TABLE IF NOT EXISTS sensor_devices (
  claim_hash CHAR(64) NULL,
  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
  created_at DATETIME(3) NOT NULL,
- last_seen_at DATETIME(3) NULL
+ last_seen_at DATETIME(3) NULL,
+ serial_number VARCHAR(64) NULL,
+ model VARCHAR(64) NULL,
+ firmware_version VARCHAR(32) NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS sensor_device_bindings (
@@ -397,6 +400,8 @@ CREATE TABLE IF NOT EXISTS sensor_latest_readings (
  sensor_ok BOOLEAN NOT NULL,
  payload_json JSON NOT NULL,
  received_at DATETIME(3) NOT NULL,
+ schema_version INT NOT NULL DEFAULT 3,
+ training_state VARCHAR(16) NULL,
  FOREIGN KEY (sensor_id) REFERENCES sensor_devices(id)
 ) ENGINE=InnoDB;
 
@@ -411,16 +416,34 @@ CREATE TABLE IF NOT EXISTS sensor_boots (
 CREATE TABLE IF NOT EXISTS sensor_workout_sessions (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  sensor_id BIGINT UNSIGNED NOT NULL,
- bed_id BIGINT UNSIGNED NOT NULL,
- user_id BIGINT UNSIGNED NOT NULL,
+ bed_id BIGINT UNSIGNED NULL,
+ user_id BIGINT UNSIGNED NULL,
  boot_id VARCHAR(36) NOT NULL,
- started_at DATETIME(3) NOT NULL,
- last_motion_at DATETIME(3) NOT NULL,
+ started_at DATETIME(3) NULL,
+ last_motion_at DATETIME(3) NULL,
  ended_at DATETIME(3) NULL,
  start_count BIGINT NOT NULL,
  end_count BIGINT NOT NULL,
  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
  end_reason VARCHAR(32) NULL,
+ schema_version INT NOT NULL DEFAULT 3,
+ device_session_id VARCHAR(96) NULL,
+ binding_id BIGINT UNSIGNED NULL,
+ active_duration_ms BIGINT NULL,
+ training_state VARCHAR(16) NULL,
+ time_valid BOOLEAN NOT NULL DEFAULT TRUE,
+ time_quality VARCHAR(16) NOT NULL DEFAULT 'SERVER',
+ ownership_status VARCHAR(16) NOT NULL DEFAULT 'ASSIGNED',
+ start_uptime_ms BIGINT NULL,
+ end_uptime_ms BIGINT NULL,
+ average_period_ms BIGINT NULL,
+ min_period_ms BIGINT NULL,
+ max_period_ms BIGINT NULL,
+ summary_received BOOLEAN NOT NULL DEFAULT FALSE,
+ summary_payload_json JSON NULL,
+ last_received_at DATETIME(3) NULL,
+ UNIQUE KEY uk_workout_device_session (sensor_id,device_session_id),
+ KEY idx_workout_pending (ownership_status,id),
  active_sensor BIGINT UNSIGNED GENERATED ALWAYS AS (IF(status='ACTIVE',sensor_id,NULL)) STORED,
  UNIQUE KEY uk_workout_active (active_sensor),
  KEY idx_workout_bed_user (bed_id,user_id,id),

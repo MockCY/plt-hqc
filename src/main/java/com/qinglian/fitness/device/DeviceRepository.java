@@ -17,9 +17,10 @@ import java.util.UUID;
 @Repository
 public class DeviceRepository {
     private final DeviceMapper mapper;
+    private final com.qinglian.fitness.sensor.SensorOwnershipService sensors;
 
-    public DeviceRepository(DeviceMapper mapper) {
-        this.mapper = mapper;
+    public DeviceRepository(DeviceMapper mapper,com.qinglian.fitness.sensor.SensorOwnershipService sensors) {
+        this.mapper = mapper; this.sensors=sensors;
     }
 
     public Optional<BoundDevice> current(long userId) {
@@ -83,7 +84,9 @@ public class DeviceRepository {
         mapper.lockUser(userId);
         mapper.lockDevice(deviceId);
         BoundDevice previous = mapper.findBound(userId, deviceId);
-        if (previous == null || mapper.deleteSelection(userId, deviceId) == 0) return false;
+        if (previous == null) return false;
+        sensors.releaseBed(userId,deviceId);
+        if (mapper.deleteSelection(userId, deviceId) == 0) return false;
         mapper.recordUnbound(previous.id(), previous.boundAt());
         return true;
     }
