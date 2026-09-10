@@ -53,4 +53,8 @@ public final class WorkoutDtos {
         @com.fasterxml.jackson.annotation.JsonProperty("watchMinutes")
         public long watchMinutes() { return totalMinutes; }
     }
+
+    public record WatchView(String itemType, long itemId, String title, Instant viewedAt) {}
+
+    public record WatchHistory(java.util.List<WatchView> items, Integer nextPage) {}
 }

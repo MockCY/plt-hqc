@@ -56,6 +56,12 @@ public class WorkoutRepository {
         return workoutMapper.findRecent(userId, limit);
     }
 
+    public WorkoutDtos.WatchHistory watchHistory(long userId, int page) {
+        if (page<1 || page>1000000) throw new ApiException(HttpStatus.BAD_REQUEST,"INVALID_PAGE","页码不正确");
+        var rows = workoutMapper.findWatchHistory(userId,(page-1)*20,21);
+        return new WorkoutDtos.WatchHistory(rows.stream().limit(20).toList(),rows.size()>20 ? page+1 : null);
+    }
+
     public WorkoutStats stats(long userId) {
         WorkoutMapper.StatsBase base = workoutMapper.stats(userId);
         List<LocalDate> dates = workoutMapper.completedDates(userId);

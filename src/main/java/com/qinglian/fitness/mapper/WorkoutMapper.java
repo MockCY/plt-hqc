@@ -23,6 +23,9 @@ public interface WorkoutMapper {
 
     List<WorkoutView> findRecent(@Param("userId") long userId, @Param("limit") int limit);
 
+    List<com.qinglian.fitness.workout.WorkoutDtos.WatchView> findWatchHistory(
+        @Param("userId") long userId, @Param("offset") int offset, @Param("limit") int limit);
+
     StatsBase stats(@Param("userId") long userId);
 
     int recordActivity(@Param("userId") long userId,

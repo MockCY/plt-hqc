@@ -36,6 +36,8 @@
 
 ## 3. 初始化数据库
 
+动作难度“拉伸”更名为“挑战”需执行 `database/32-exercise-challenge-level.sql`，更新已有动作的难度字段。
+
 不要让应用使用 `root`，也不要把公网 MySQL 密码写入代码或提交到仓库。
 
 在 MySQL 管理终端依次执行：

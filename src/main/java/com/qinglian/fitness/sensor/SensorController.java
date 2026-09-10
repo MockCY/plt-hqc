@@ -36,4 +36,8 @@ public class SensorController {
     public Map<String,Object> latest(HttpServletRequest request,@PathVariable String bedSn) { return service.latest(CurrentUser.id(request),bedSn); }
     @GetMapping("/api/v1/beds/{bedSn}/sensor/sessions")
     public Map<String,Object> sessions(HttpServletRequest request,@PathVariable String bedSn,@RequestParam(required=false) Long before) { return service.history(CurrentUser.id(request),bedSn,before); }
+    @GetMapping("/api/v1/sensor/sessions")
+    public Map<String,Object> userSessions(HttpServletRequest request,@RequestParam(required=false) Long before) { return service.userHistory(CurrentUser.id(request),before); }
+    @GetMapping("/api/v1/sensor/stats")
+    public Map<String,Object> userStats(HttpServletRequest request) { return service.trainingStats(CurrentUser.id(request)); }
 }

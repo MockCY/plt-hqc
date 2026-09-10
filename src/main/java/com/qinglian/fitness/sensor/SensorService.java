@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.Instant;
@@ -256,6 +257,41 @@ public class SensorService {
         List<Map<String,Object>> items = rows.stream().limit(20).map(this::sessionView).toList();
         Map<String,Object> result = new LinkedHashMap<>(); result.put("items",items);
         result.put("nextCursor",more ? items.getLast().get("id") : null); return result;
+    }
+
+    public Map<String,Object> userHistory(long user, Long before) {
+        var rows = db.queryForList("select w.*,d.serial_number bed_sn,coalesce(nullif(d.device_name,''),d.device_model) device_name from sensor_workout_sessions w left join devices d on d.id=w.bed_id where w.user_id=? and w.id<? and "+VISIBLE_WORKOUT+" order by w.id desc limit 21",
+            user,before == null ? Long.MAX_VALUE : before);
+        var items = rows.stream().limit(20).map(row -> {
+            var item = sessionView(row);
+            item.put("bedSn",row.get("bed_sn"));
+            item.put("deviceName",row.get("device_name"));
+            return item;
+        }).toList();
+        Map<String,Object> result = new LinkedHashMap<>();
+        result.put("items",items);
+        result.put("nextCursor",rows.size()>20 ? items.getLast().get("id") : null);
+        return result;
+    }
+
+    public Map<String,Object> trainingStats(long user) {
+        String where = " from sensor_workout_sessions w where w.user_id=? and "+VISIBLE_WORKOUT;
+        var totals = db.queryForMap("select coalesce(sum(w.status='COMPLETED'),0) completed_count,coalesce(sum(greatest(0,timestampdiff(microsecond,w.started_at,w.last_motion_at) div 1000)),0) duration_ms,coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions"+where,user);
+        Set<LocalDate> days = new HashSet<>();
+        // Sensor timestamps are stored in UTC; count each Beijing calendar day touched by training.
+        db.query("select distinct date(timestampadd(hour,8,w.started_at)) first_day,date(timestampadd(hour,8,w.last_motion_at)) last_day"+where+" and (w.end_count>w.start_count or w.last_motion_at>w.started_at)", rs -> {
+            LocalDate first = rs.getDate("first_day").toLocalDate();
+            LocalDate last = rs.getDate("last_day").toLocalDate();
+            for (LocalDate day=first; !day.isAfter(last); day=day.plusDays(1)) days.add(day);
+        },user);
+        LocalDate day = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+        if (!days.contains(day)) day = day.minusDays(1);
+        int consecutive = 0;
+        while (days.contains(day)) { consecutive++; day = day.minusDays(1); }
+        long duration = number(totals,"duration_ms");
+        return Map.of("completedCount",number(totals,"completed_count"),"trainingDurationMs",duration,
+            "trainingMinutes",duration/60000,"trainingDays",days.size(),"consecutiveDays",consecutive,
+            "repetitionCount",number(totals,"repetitions"));
     }
     @Transactional
     public void unbind(long user, long bindingId) {

@@ -24,6 +24,41 @@
         </constructor>
     </resultMap>
 
+    <resultMap id="watchResultMap" type="com.qinglian.fitness.workout.WorkoutDtos$WatchView">
+        <constructor>
+            <arg column="item_type" javaType="java.lang.String"/>
+            <arg column="item_id" javaType="_long"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="viewed_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <!-- Merge browsing, partial playback and legacy completed courses by content. -->
+    <select id="findWatchHistory" resultMap="watchResultMap">
+        select h.item_type,h.item_id,
+            coalesce(e.name,c.title,cc.title,p.title,'内容已下架') title,h.viewed_at
+        from (
+            select item_type,item_id,max(viewed_at) viewed_at from (
+                select activity_type item_type,item_id,started_at viewed_at
+                from training_activity where user_id=#{userId} and active_seconds>0
+                union all
+                select case detail_type when 'LEGACY_COURSE' then 'COURSE'
+                    when 'LEGACY_CUSTOM' then 'CUSTOM_COURSE' else detail_type end,item_id,visited_at
+                from training_detail_visits where user_id=#{userId}
+                union all
+                select 'COURSE',course_id,completed_at from workout_records where user_id=#{userId}
+                union all
+                select 'CUSTOM_COURSE',custom_course_id,completed_at from custom_workout_records where user_id=#{userId}
+            ) visits group by item_type,item_id
+        ) h
+        left join exercises e on h.item_type='EXERCISE' and e.id=h.item_id
+        left join courses c on h.item_type='COURSE' and c.id=h.item_id
+        left join custom_courses cc on h.item_type='CUSTOM_COURSE' and cc.id=h.item_id and cc.user_id=#{userId}
+        left join training_plans p on h.item_type='PLAN' and p.id=h.item_id
+        order by h.viewed_at desc,h.item_type,h.item_id
+        limit #{limit} offset #{offset}
+    </select>
+
     <insert id="create" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         insert into workout_records(
             user_id, course_id, duration_minutes, completion_percent, started_at, completed_at

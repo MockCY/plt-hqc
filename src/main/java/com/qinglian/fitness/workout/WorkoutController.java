@@ -54,6 +54,11 @@ public class WorkoutController {
         return repository.stats(CurrentUser.id(request));
     }
 
+    @GetMapping("/watch-history")
+    public WorkoutDtos.WatchHistory watchHistory(HttpServletRequest request,@RequestParam(defaultValue="1") int page) {
+        return repository.watchHistory(CurrentUser.id(request),page);
+    }
+
     @PostMapping("/detail-visits")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void recordDetailVisit(HttpServletRequest request,
