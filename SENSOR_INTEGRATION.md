@@ -20,6 +20,12 @@ and ingestion also checks expiry before accepting a new motion report. Pauses sh
 belong to the same session. End-of-session waiting is excluded. Duration is last motion minus first motion.
 Values are stored as UTC `DATETIME(3)` and returned as ISO UTC timestamps.
 
+Completed sensor workouts must have a positive repetition delta to appear in user/admin training
+lists or contribute to training totals and training days. A completed zero-repetition workout is
+excluded regardless of its duration. Active sessions remain visible before the first repetition,
+but contribute to training duration and training days only after the first counted repetition.
+The rule applies to existing V3/V4 records at query time; stored readings and sessions are retained.
+
 Latest state is updated once per accepted report. Historical storage contains workout sessions, not
 every accelerometer sample. Repeated `(deviceId,bootId,sequence)` uploads are acknowledged idempotently.
 Old boot uploads are rejected; a reboot closes the prior session. Counter resets require a new bootId.

@@ -125,7 +125,7 @@ public class AdminSensorService {
         if (to!=null) { where.append(" and w.started_at<?"); args.add(utc(to.plusDays(1).atStartOfDay(zone).toInstant())); }
         var records=page("select w.*,s.device_id,s.device_code,d.serial_number bed_sn,u.nickname user_name,u.phone user_phone ",
             WORKOUTS,where.toString(),args," order by w.id desc",page,size);
-        var sum=db.queryForMap("select coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions,coalesce(sum("+DURATION_SQL+"),0) durationMs,coalesce(sum(w.status='ACTIVE'),0) activeSessions "+WORKOUTS+where,args.toArray());
+        var sum=db.queryForMap("select coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions,coalesce(sum(case when "+COUNTED_WORKOUT+" then "+DURATION_SQL+" else 0 end),0) durationMs,coalesce(sum(w.status='ACTIVE'),0) activeSessions "+WORKOUTS+where,args.toArray());
         return Map.of("items",records.items(),"total",records.total(),"page",page,"pageSize",size,"summary",sum);
     }
     private void lock(long id) {

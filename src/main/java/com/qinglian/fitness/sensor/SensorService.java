@@ -27,9 +27,10 @@ public class SensorService {
     private static final Logger log = LoggerFactory.getLogger(SensorService.class);
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter
         .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").withZone(ZoneId.of("Asia/Shanghai"));
-    // Keep active sessions and any completed session with a repetition or a visible second.
+    // Keep live sessions visible; completed training requires at least one counted repetition.
     static final String DURATION_SQL = "case when w.schema_version=4 then coalesce(w.active_duration_ms,0) else greatest(0,timestampdiff(microsecond,w.started_at,w.last_motion_at) div 1000) end";
-    static final String VISIBLE_WORKOUT = "(w.status='ACTIVE' or w.end_count>w.start_count or (w.schema_version=4 and w.active_duration_ms>=5000) or (w.schema_version=3 and w.last_motion_at>=timestampadd(second,1,w.started_at)))";
+    static final String COUNTED_WORKOUT = "w.end_count>w.start_count";
+    static final String VISIBLE_WORKOUT = "(w.status='ACTIVE' or "+COUNTED_WORKOUT+")";
     private final JdbcTemplate db;
     private final ObjectMapper json;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -293,11 +294,11 @@ public class SensorService {
     }
 
     public Map<String,Object> trainingStats(long user) {
-        String where = " from sensor_workout_sessions w where w.user_id=? and "+VISIBLE_WORKOUT;
+        String where = " from sensor_workout_sessions w where w.user_id=? and "+COUNTED_WORKOUT;
         var totals = db.queryForMap("select coalesce(sum(w.status='COMPLETED'),0) completed_count,coalesce(sum("+DURATION_SQL+"),0) duration_ms,coalesce(sum(greatest(0,w.end_count-w.start_count)),0) repetitions"+where,user);
         Set<LocalDate> days = new HashSet<>();
         // Sensor timestamps are stored in UTC; count each Beijing calendar day touched by training.
-        db.query("select distinct date(timestampadd(hour,8,w.started_at)) first_day,date(timestampadd(hour,8,w.last_motion_at)) last_day"+where+" and w.time_valid=1 and w.started_at is not null and w.last_motion_at is not null and (w.end_count>w.start_count or "+DURATION_SQL+">0)", rs -> {
+        db.query("select distinct date(timestampadd(hour,8,w.started_at)) first_day,date(timestampadd(hour,8,w.last_motion_at)) last_day"+where+" and w.time_valid=1 and w.started_at is not null and w.last_motion_at is not null", rs -> {
             LocalDate first = rs.getDate("first_day").toLocalDate();
             LocalDate last = rs.getDate("last_day").toLocalDate();
             for (LocalDate day=first; !day.isAfter(last); day=day.plusDays(1)) days.add(day);
