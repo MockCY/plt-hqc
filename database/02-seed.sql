@@ -12,9 +12,9 @@ ON DUPLICATE KEY UPDATE
 
 INSERT INTO exercises(id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip, cover_image, status, sort_order)
 VALUES
-    (1, '徒手深蹲', '下肢', '基础', '无器械', 2, '10 次', '双脚与肩同宽，髋部向后下方坐，起身时脚掌稳定踩地。', '膝盖不适时减小下蹲幅度，并放慢速度。', '/api/media/files/images/fitness/course-fullbody.jpg', 'PUBLISHED', 10),
-    (2, '站姿提膝', '核心', '基础', '无器械', 2, '30 秒', '收紧腹部，交替抬膝至舒适高度，保持上身稳定。', '不要憋气，腰部不适时降低抬膝高度。', '/api/media/files/images/fitness/course-core.jpg', 'PUBLISHED', 20),
-    (3, '肩背放松', '肩背', '挑战', '无器械', 2, '20 秒', '肩膀自然下沉，手臂横过胸前，轻柔拉伸肩背。', '保持动作轻柔，不要快速甩动或强行拉伸。', '/api/media/files/images/fitness/course-stretch.jpg', 'PUBLISHED', 30)
+    (1, '徒手深蹲', '臀腿塑形', '基础', '无器械', 2, '10 次', '双脚与肩同宽，髋部向后下方坐，起身时脚掌稳定踩地。', '膝盖不适时减小下蹲幅度，并放慢速度。', '/api/media/files/images/fitness/course-fullbody.jpg', 'PUBLISHED', 10),
+    (2, '站姿提膝', '核心训练', '基础', '无器械', 2, '30 秒', '收紧腹部，交替抬膝至舒适高度，保持上身稳定。', '不要憋气，腰部不适时降低抬膝高度。', '/api/media/files/images/fitness/course-core.jpg', 'PUBLISHED', 20),
+    (3, '肩背放松', '肩背体态', '挑战', '无器械', 2, '20 秒', '肩膀自然下沉，手臂横过胸前，轻柔拉伸肩背。', '保持动作轻柔，不要快速甩动或强行拉伸。', '/api/media/files/images/fitness/course-stretch.jpg', 'PUBLISHED', 30)
 ON DUPLICATE KEY UPDATE
     name = VALUES(name), body_part = VALUES(body_part), level = VALUES(level),
     equipment = VALUES(equipment), suggested_sets = VALUES(suggested_sets), target = VALUES(target),

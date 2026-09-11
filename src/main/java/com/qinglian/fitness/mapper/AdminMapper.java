@@ -82,11 +82,13 @@ public interface AdminMapper {
         @Param("recommendedPlays") Integer recommendedPlays
     );
 
-    long countExercisesFiltered(@Param("query") String query, @Param("status") String status);
+    long countExercisesFiltered(@Param("query") String query, @Param("status") String status,
+                                @Param("bodyParts") List<String> bodyParts);
 
     List<ExerciseRow> findExercises(
         @Param("query") String query,
         @Param("status") String status,
+        @Param("bodyParts") List<String> bodyParts,
         @Param("limit") int limit,
         @Param("offset") int offset
     );

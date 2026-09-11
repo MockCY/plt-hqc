@@ -25,7 +25,7 @@ public class CatalogRepository {
     }
 
     public List<ExerciseView> findExercises(String bodyPart, String query) {
-        return catalogMapper.findExercises(normalizeFilter(bodyPart), normalizeQuery(query));
+        return catalogMapper.findExercises(ExerciseCategory.filterValues(bodyPart), normalizeQuery(query));
     }
 
     public Optional<CourseDetailView> findCourse(long id) {

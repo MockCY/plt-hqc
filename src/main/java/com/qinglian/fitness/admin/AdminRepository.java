@@ -1,6 +1,7 @@
 package com.qinglian.fitness.admin;
 
 import com.qinglian.fitness.admin.AdminDtos.*;
+import com.qinglian.fitness.catalog.ExerciseCategory;
 import com.qinglian.fitness.common.ApiException;
 import com.qinglian.fitness.mapper.AdminMapper;
 import com.qinglian.fitness.mapper.AdminMapper.CourseData;
@@ -155,12 +156,13 @@ public class AdminRepository {
         }
     }
 
-    public PageResult<ExerciseRow> exercises(String query, String status, int page, int pageSize) {
+    public PageResult<ExerciseRow> exercises(String query, String status, String bodyPart, int page, int pageSize) {
         Paging paging = paging(page, pageSize);
         String normalizedQuery = normalizeQuery(query);
         String normalizedStatus = normalizeFilter(status);
-        return new PageResult<>(mapper.findExercises(normalizedQuery, normalizedStatus, paging.pageSize(), paging.offset()),
-            mapper.countExercisesFiltered(normalizedQuery, normalizedStatus), paging.page(), paging.pageSize());
+        List<String> bodyParts = ExerciseCategory.filterValues(bodyPart);
+        return new PageResult<>(mapper.findExercises(normalizedQuery, normalizedStatus, bodyParts, paging.pageSize(), paging.offset()),
+            mapper.countExercisesFiltered(normalizedQuery, normalizedStatus, bodyParts), paging.page(), paging.pageSize());
     }
 
     public ExerciseRow exercise(long id) {
@@ -171,6 +173,7 @@ public class AdminRepository {
 
     @Transactional
     public ExerciseRow createExercise(ExerciseRequest request) {
+        ExerciseCategory.validateWrite(request.bodyPart());
         validateContentStatus(request.status());
         InsertCommand<ExerciseRequest> command = new InsertCommand<>(request);
         mapper.insertExercise(command);
@@ -178,6 +181,7 @@ public class AdminRepository {
     }
 
     public ExerciseRow updateExercise(long id, ExerciseRequest request) {
+        ExerciseCategory.validateWrite(request.bodyPart());
         exercise(id);
         validateContentStatus(request.status());
         mapper.updateExercise(id, request);

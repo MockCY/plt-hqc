@@ -388,6 +388,7 @@
         <where>
             <if test="query != null">lower(name) like concat('%', lower(#{query}), '%')</if>
             <if test="status != null">and status = #{status}</if>
+            <include refid="exerciseCategoryFilter"/>
         </where>
     </select>
 
@@ -396,10 +397,20 @@
         <where>
             <if test="query != null">lower(name) like concat('%', lower(#{query}), '%')</if>
             <if test="status != null">and status = #{status}</if>
+            <include refid="exerciseCategoryFilter"/>
         </where>
         order by sort_order, updated_at desc
         limit #{limit} offset #{offset}
     </select>
+
+    <sql id="exerciseCategoryFilter">
+        <if test="bodyParts != null">
+            and trim(body_part) in
+            <foreach collection="bodyParts" item="bodyPart" open="(" separator="," close=")">
+                #{bodyPart}
+            </foreach>
+        </if>
+    </sql>
 
     <select id="findExercise" resultMap="exerciseRowMap">
         select * from exercises where id = #{id}

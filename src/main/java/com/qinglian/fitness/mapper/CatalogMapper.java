@@ -13,7 +13,7 @@ public interface CatalogMapper {
 
     List<CourseView> findCourses(@Param("type") String type, @Param("query") String query);
 
-    List<ExerciseView> findExercises(@Param("bodyPart") String bodyPart, @Param("query") String query);
+    List<ExerciseView> findExercises(@Param("bodyParts") List<String> bodyParts, @Param("query") String query);
 
     CourseDetailRow findCourse(@Param("id") long id);
 

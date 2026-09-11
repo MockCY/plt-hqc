@@ -137,10 +137,11 @@ public class AdminController {
     public PageResult<ExerciseRow> exercises(
         @RequestParam(required = false) String query,
         @RequestParam(required = false) String status,
+        @RequestParam(required = false) String bodyPart,
         @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "50") int pageSize
     ) {
-        return repository.exercises(query, status, page, pageSize);
+        return repository.exercises(query, status, bodyPart, page, pageSize);
     }
 
     @GetMapping("/exercises/{id}")

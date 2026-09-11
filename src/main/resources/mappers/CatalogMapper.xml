@@ -112,8 +112,11 @@
                focus_image_url, focus_parts, spring_sets, key_points, common_mistakes, instruction_audio_url
         from exercises
         where status = 'PUBLISHED'
-        <if test="bodyPart != null">
-            and body_part = #{bodyPart}
+        <if test="bodyParts != null">
+            and trim(body_part) in
+            <foreach collection="bodyParts" item="bodyPart" open="(" separator="," close=")">
+                #{bodyPart}
+            </foreach>
         </if>
         <if test="query != null">
             and (name like concat('%', #{query}, '%')

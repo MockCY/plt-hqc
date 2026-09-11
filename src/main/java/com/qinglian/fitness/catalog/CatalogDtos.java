@@ -46,6 +46,9 @@ public final class CatalogDtos {
         String commonMistakes,
         String instructionAudioUrl
     ) {
+        public ExerciseView {
+            bodyPart = ExerciseCategory.normalizeStored(bodyPart);
+        }
     }
 
     public record CourseExerciseView(

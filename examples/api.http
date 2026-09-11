@@ -26,7 +26,7 @@ GET {{baseUrl}}/api/courses
 Authorization: Bearer {{token}}
 
 ### 动作列表
-GET {{baseUrl}}/api/exercises?bodyPart=胸部
+GET {{baseUrl}}/api/exercises?bodyPart=核心训练
 Authorization: Bearer {{token}}
 
 ### 当前计划
@@ -56,4 +56,3 @@ Authorization: Bearer {{token}}
 ### 注销
 POST {{baseUrl}}/api/auth/logout
 Authorization: Bearer {{token}}
-

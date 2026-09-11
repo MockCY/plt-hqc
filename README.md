@@ -39,6 +39,13 @@
 
 动作难度“拉伸”更名为“挑战”需执行 `database/32-exercise-challenge-level.sql`，更新已有动作的难度字段。
 
+动作库类型统一为「核心训练、臀腿塑形、肩背体态、拉伸协调」。已有数据库需执行
+`database/34-exercise-categories.sql`；新数据库种子已使用新名称。接口继续使用 `bodyPart` 字段：
+旧值「核心」映射为核心训练，「臀腿 / 下肢」映射为臀腿塑形，「肩背」映射为肩背体态，
+「全身 / 拉伸」映射为拉伸协调。查询和返回值兼容这些旧值，迁移前后筛选均可使用；后台新增、编辑只接受四个新值。
+脚本可重复执行，保留动作 ID、课程关联及未知旧值，并列出需人工归类的动作。未知旧值仍在「全部」中显示，后台编辑时需重新选择类型。
+此迁移不改课程类型或动作难度，应用不会自动执行迁移。
+
 不要让应用使用 `root`，也不要把公网 MySQL 密码写入代码或提交到仓库。
 
 在 MySQL 管理终端依次执行：
@@ -142,7 +149,7 @@ Authorization: Bearer <token>
 | GET | `/api/media/files/**` | 否 | 通过现有 `/api/` 代理读取媒体文件 |
 | GET | `/api/courses` | 否 | 课程列表，支持 `type`、`query` |
 | GET | `/api/courses/{id}` | 否 | 课程详情与训练动作步骤 |
-| GET | `/api/exercises` | 否 | 动作列表，支持 `bodyPart`、`query` |
+| GET | `/api/exercises` | 否 | 动作列表，支持四类 `bodyPart`、`query`；不传类型或传「全部」查询所有动作 |
 | GET | `/api/plans/catalog` | 否 | 可选训练计划列表 |
 | GET | `/api/plans/current` | 是 | 当前训练计划；未选择时返回 `204` |
 | PUT | `/api/plans/{id}/select` | 是 | 选择并保存当前计划 |
@@ -167,6 +174,10 @@ Authorization: Bearer <token>
 完整请求样例见 [examples/api.http](examples/api.http)。
 
 ## 7. 管理后台
+
+`GET /api/admin/exercises` 支持 `bodyPart` 类型筛选，与小程序使用同一四分类；
+不传、空字符串、`ALL` 或「全部」均查询所有类型，列表与分页总数使用相同条件。
+后台动作新建与编辑的 `bodyPart` 仅接受四个标准名称，其他值返回 `400`。
 
 ### 多设备绑定升级
 

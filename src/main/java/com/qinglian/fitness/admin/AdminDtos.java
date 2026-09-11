@@ -1,6 +1,7 @@
 package com.qinglian.fitness.admin;
 
 import com.qinglian.fitness.catalog.TrainingSet;
+import com.qinglian.fitness.catalog.ExerciseCategory;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -115,11 +116,15 @@ public final class AdminDtos {
         String status, int sortOrder,
         Instant createdAt, Instant updatedAt
     ) {
+        public ExerciseRow {
+            bodyPart = ExerciseCategory.normalizeStored(bodyPart);
+        }
     }
 
     public record ExerciseRequest(
         @NotBlank @Size(max = 80) String name,
-        @NotBlank @Size(max = 30) String bodyPart,
+        @NotBlank @Pattern(regexp = ExerciseCategory.VALID_VALUES_PATTERN,
+            message = ExerciseCategory.VALIDATION_MESSAGE) String bodyPart,
         @NotBlank @Size(max = 30) String level,
         @NotBlank @Size(max = 80) String equipment,
         @Min(1) @Max(20) int suggestedSets,
