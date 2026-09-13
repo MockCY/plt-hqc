@@ -2,6 +2,7 @@ package com.qinglian.fitness.admin;
 
 import com.qinglian.fitness.catalog.TrainingSet;
 import com.qinglian.fitness.catalog.ExerciseCategory;
+import com.qinglian.fitness.catalog.SpringCounts;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -112,7 +113,7 @@ public final class AdminDtos {
         long id, String name, String bodyPart, String level, String equipment, int suggestedSets,
         String target, String cue, String safetyTip, String coverImage, String videoUrl,
         String videoCoverImage, Integer videoDurationSeconds, String backgroundMusicUrl,
-        String focusImageUrl, String focusParts, List<Integer> springSets, String keyPoints, String commonMistakes, String instructionAudioUrl,
+        String focusImageUrl, String focusParts, List<Integer> springSets, SpringCounts springCounts, String keyPoints, String commonMistakes, String instructionAudioUrl,
         String status, int sortOrder,
         Instant createdAt, Instant updatedAt
     ) {
@@ -139,12 +140,16 @@ public final class AdminDtos {
         @Size(max = 500) String focusImageUrl,
         @Size(max = 100) String focusParts,
         @Size(max = 20) List<@Min(1) @Max(20) Integer> springSets,
+        @Valid SpringCounts springCounts,
         @Size(max = 2000) String keyPoints,
         @Size(max = 2000) String commonMistakes,
         @Size(max = 500) String instructionAudioUrl,
         @NotBlank String status,
         int sortOrder
     ) {
+        public ExerciseRequest {
+            if (springCounts != null) springSets = List.of();
+        }
     }
 
     public record PlanItemRow(long id, long courseId, String courseTitle, int dayOffset, int sortOrder) {

@@ -63,9 +63,9 @@ public class WorkoutRepository {
     }
 
     public WorkoutStats stats(long userId) {
-        WorkoutMapper.StatsBase base = workoutMapper.stats(userId);
+        WorkoutMapper.StatsBase base = workoutMapper.stats(userId, LocalDate.now(ZoneId.of("Asia/Shanghai")));
         List<LocalDate> dates = workoutMapper.completedDates(userId);
-        return new WorkoutStats(base.completedCount(), base.totalMinutes(), consecutiveDays(dates), dates.size());
+        return new WorkoutStats(base.completedCount(), base.totalMinutes(), consecutiveDays(dates), dates.size(), base.todayWatchMinutes());
     }
 
     public void recordActivity(long userId, WorkoutDtos.ActivityRequest activity) {

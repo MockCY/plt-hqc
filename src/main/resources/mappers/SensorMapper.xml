@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.SensorMapper">
+    <!-- Keep UTC DATETIME values as LocalDateTime for the sensor protocol conversion. -->
+    <resultMap id="sensorRow" type="java.util.LinkedHashMap" autoMapping="true">
+        <result column="created_at" property="created_at" javaType="java.time.LocalDateTime"/>
+        <result column="last_seen_at" property="last_seen_at" javaType="java.time.LocalDateTime"/>
+        <result column="bound_at" property="bound_at" javaType="java.time.LocalDateTime"/>
+        <result column="unbound_at" property="unbound_at" javaType="java.time.LocalDateTime"/>
+        <result column="expires_at" property="expires_at" javaType="java.time.LocalDateTime"/>
+        <result column="confirmed_at" property="confirmed_at" javaType="java.time.LocalDateTime"/>
+        <result column="used_at" property="used_at" javaType="java.time.LocalDateTime"/>
+        <result column="received_at" property="received_at" javaType="java.time.LocalDateTime"/>
+        <result column="started_at" property="started_at" javaType="java.time.LocalDateTime"/>
+        <result column="last_motion_at" property="last_motion_at" javaType="java.time.LocalDateTime"/>
+        <result column="ended_at" property="ended_at" javaType="java.time.LocalDateTime"/>
+        <result column="last_received_at" property="last_received_at" javaType="java.time.LocalDateTime"/>
+    </resultMap>
+
+    <resultMap id="bindingRef" type="com.qinglian.fitness.mapper.SensorMapper$BindingRef">
+        <constructor>
+            <arg column="id" javaType="_long"/>
+            <arg column="sensor_id" javaType="_long"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findDevice" resultMap="sensorRow" useCache="false" flushCache="true">
+        select * from sensor_devices where device_id = #{deviceId}
+        <if test="lock">for update</if>
+    </select>
+
+    <insert id="registerDevice">
+        insert into sensor_devices(device_id, device_code, created_at)
+        values (#{deviceId}, #{deviceCode}, #{createdAt})
+        on duplicate key update id = id
+    </insert>
+
+    <select id="findOwnedBedId" resultType="java.lang.Long">
+        select d.id from devices d join user_device_selections u on u.device_id = d.id
+        where d.serial_number = #{serialNumber} and u.user_id = #{userId}
+        limit 1
+    </select>
+
+    <select id="findConflictingBindingId" resultType="java.lang.Long">
+        select id from sensor_device_bindings
+        where unbound_at is null and (sensor_id = #{sensorId} or bed_id = #{bedId})
+        limit 1
+    </select>
+
+    <delete id="deleteUserChallenges">
+        delete from sensor_binding_challenges where user_id = #{userId} and sensor_id = #{sensorId}
+    </delete>
+
+    <insert id="createChallenge">
+        insert into sensor_binding_challenges(token_hash, sensor_id, bed_id, user_id, expires_at)
+        values (#{tokenHash}, #{sensorId}, #{bedId}, #{userId}, #{expiresAt})
+    </insert>
+
+    <update id="confirmChallenge">
+        update sensor_binding_challenges set confirmed_at = #{confirmedAt}
+        where token_hash = #{tokenHash} and sensor_id = #{sensorId}
+          and expires_at &gt; #{validAfter} and used_at is null
+    </update>
+
+    <select id="lockUser" resultType="java.lang.Long" useCache="false" flushCache="true">
+        select id from users where id = #{userId} for update
+    </select>
+
+    <select id="lockBed" resultType="java.lang.Long" useCache="false" flushCache="true">
+        select id from devices where id = #{bedId} for update
+    </select>
+
+    <select id="lockSensor" resultType="java.lang.Long" useCache="false" flushCache="true">
+        select id from sensor_devices where id = #{sensorId} for update
+    </select>
+
+    <select id="findUserChallenge" resultMap="sensorRow">
+        select * from sensor_binding_challenges where token_hash = #{tokenHash} and user_id = #{userId}
+    </select>
+
+    <select id="lockChallenge" resultMap="sensorRow" useCache="false" flushCache="true">
+        select * from sensor_binding_challenges where token_hash = #{tokenHash} for update
+    </select>
+
+    <select id="findSelectedUserId" resultType="java.lang.Long">
+        select user_id from user_device_selections where user_id = #{userId} and device_id = #{bedId}
+    </select>
+
+    <insert id="createBinding">
+        insert into sensor_device_bindings(sensor_id, bed_id, user_id, bound_at)
+        values (#{sensorId}, #{bedId}, #{userId}, #{boundAt})
+    </insert>
+
+    <update id="markChallengeUsed">
+        update sensor_binding_challenges set used_at = #{usedAt} where token_hash = #{tokenHash}
+    </update>
+
+    <select id="findLatestReading" resultMap="sensorRow">
+        select * from sensor_latest_readings where sensor_id = #{sensorId}
+    </select>
+
+    <select id="findBoot" resultType="java.lang.Long">
+        select sensor_id from sensor_boots where sensor_id = #{sensorId} and boot_id = #{bootId}
+    </select>
+
+    <insert id="createBoot">
+        insert into sensor_boots(sensor_id, boot_id, first_seen_at) values (#{sensorId}, #{bootId}, #{firstSeenAt})
+    </insert>
+
+    <update id="expireSessions">
+        update sensor_workout_sessions
+        set status = 'COMPLETED', training_state = 'idle', ended_at = last_motion_at, end_reason = 'IDLE'
+        where schema_version = #{schemaVersion} and status = 'ACTIVE' and last_motion_at &lt;= #{cutoff}
+        <if test="sensorId != null">and sensor_id = #{sensorId}</if>
+    </update>
+
+    <select id="findCurrentOwnership" resultMap="sensorRow">
+        select b.id, b.bed_id, u.user_id from sensor_device_bindings b
+        join user_device_selections u on u.device_id = b.bed_id and u.user_id = b.user_id
+        where b.sensor_id = #{sensorId} and b.unbound_at is null
+        limit 1
+    </select>
+
+    <select id="lockActiveSession" resultMap="sensorRow" useCache="false" flushCache="true">
+        select * from sensor_workout_sessions where sensor_id = #{sensorId} and status = 'ACTIVE' for update
+    </select>
+
+    <insert id="createLegacySession">
+        insert into sensor_workout_sessions(sensor_id, bed_id, user_id, boot_id, started_at, last_motion_at, start_count, end_count)
+        values (#{sensorId}, #{bedId}, #{userId}, #{bootId}, #{startedAt}, #{startedAt}, #{startCount}, #{endCount})
+    </insert>
+
+    <update id="updateLegacySession">
+        update sensor_workout_sessions set end_count = #{endCount}, last_motion_at = #{lastMotionAt}
+        where id = #{sessionId}
+    </update>
+
+    <insert id="upsertLegacyReading">
+        insert into sensor_latest_readings(sensor_id, boot_id, sequence_number, repetition_count,
+                                          moving, standby, sensor_ok, payload_json, received_at)
+        values (#{sensorId}, #{bootId}, #{sequenceNumber}, #{repetitionCount},
+                #{moving}, #{standby}, #{sensorOk}, #{payloadJson}, #{receivedAt})
+        on duplicate key update boot_id = values(boot_id), sequence_number = values(sequence_number),
+            repetition_count = values(repetition_count), moving = values(moving), standby = values(standby),
+            sensor_ok = values(sensor_ok), payload_json = values(payload_json), received_at = values(received_at),
+            schema_version = 3, training_state = null
+    </insert>
+
+    <update id="touchDevice">
+        update sensor_devices set last_seen_at = #{lastSeenAt} where id = #{sensorId}
+    </update>
+
+    <update id="completeSession">
+        update sensor_workout_sessions
+        set status = 'COMPLETED', training_state = 'idle', ended_at = last_motion_at, end_reason = #{reason}
+        where id = #{sessionId} and status = 'ACTIVE'
+    </update>
+
+    <delete id="deleteExpiredChallenges">
+        delete from sensor_binding_challenges where expires_at &lt; #{cutoff}
+    </delete>
+
+    <select id="findBedBinding" resultMap="sensorRow">
+        select b.id, b.sensor_id, s.device_id, s.device_code, s.serial_number, s.model, s.firmware_version
+        from sensor_device_bindings b join sensor_devices s on s.id = b.sensor_id
+        where b.bed_id = #{bedId} and b.user_id = #{userId} and b.unbound_at is null
+        limit 1
+    </select>
+
+    <select id="findLatestVisibleSession" resultMap="sensorRow">
+        select w.*, <include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/> estimated_calories,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeight"/> calorie_weight_kg,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeightDefaulted"/> calorie_weight_defaulted
+        from sensor_workout_sessions w left join users u on u.id = w.user_id
+        where w.sensor_id = #{sensorId} and w.bed_id = #{bedId} and w.user_id = #{userId}
+          and <include refid="com.qinglian.fitness.mapper.SensorSql.visibleWorkout"/>
+        order by w.id desc limit 1
+    </select>
+
+    <select id="findBedHistory" resultMap="sensorRow">
+        select w.*, <include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/> estimated_calories,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeight"/> calorie_weight_kg,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeightDefaulted"/> calorie_weight_defaulted
+        from sensor_workout_sessions w left join users u on u.id = w.user_id
+        where w.bed_id = #{bedId} and w.user_id = #{userId} and w.id &lt; #{before}
+          and <include refid="com.qinglian.fitness.mapper.SensorSql.visibleWorkout"/>
+        order by w.id desc limit 21
+    </select>
+
+    <select id="findUserHistory" resultMap="sensorRow">
+        select w.*, <include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/> estimated_calories,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeight"/> calorie_weight_kg,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeightDefaulted"/> calorie_weight_defaulted,
+               d.serial_number bed_sn, coalesce(nullif(d.device_name, ''), d.device_model) device_name
+        from sensor_workout_sessions w left join devices d on d.id = w.bed_id
+        left join users u on u.id = w.user_id
+        where w.user_id = #{userId} and w.id &lt; #{before}
+          and <include refid="com.qinglian.fitness.mapper.SensorSql.visibleWorkout"/>
+        order by w.id desc limit 21
+    </select>
+
+    <select id="findActiveBinding" resultMap="sensorRow">
+        select * from sensor_device_bindings where id = #{bindingId} and unbound_at is null
+    </select>
+
+    <update id="unbind">
+        update sensor_device_bindings set unbound_at = #{unboundAt} where id = #{bindingId}
+    </update>
+
+    <update id="unbindActive">
+        update sensor_device_bindings set unbound_at = #{unboundAt}
+        where id = #{bindingId} and unbound_at is null
+    </update>
+
+    <update id="completeSensorSessions">
+        update sensor_workout_sessions
+        set status = 'COMPLETED', training_state = 'idle', ended_at = last_motion_at, end_reason = #{reason}
+        where sensor_id = #{sensorId} and status = 'ACTIVE'
+    </update>
+
+    <delete id="deleteSensorChallenges">
+        delete from sensor_binding_challenges where sensor_id = #{sensorId}
+    </delete>
+
+    <select id="findOwnedBindings" resultMap="bindingRef">
+        select id, sensor_id from sensor_device_bindings
+        where bed_id = #{bedId} and user_id = #{userId} and unbound_at is null
+    </select>
+
+    <select id="findSelectedBedIds" resultType="java.lang.Long">
+        select device_id from user_device_selections where user_id = #{userId} order by device_id
+    </select>
+</mapper>

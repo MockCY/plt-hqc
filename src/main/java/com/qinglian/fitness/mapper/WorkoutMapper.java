@@ -26,7 +26,7 @@ public interface WorkoutMapper {
     List<com.qinglian.fitness.workout.WorkoutDtos.WatchView> findWatchHistory(
         @Param("userId") long userId, @Param("offset") int offset, @Param("limit") int limit);
 
-    StatsBase stats(@Param("userId") long userId);
+    StatsBase stats(@Param("userId") long userId, @Param("today") LocalDate today);
 
     int recordActivity(@Param("userId") long userId,
                        @Param("activity") com.qinglian.fitness.workout.WorkoutDtos.ActivityRequest activity);
@@ -36,7 +36,7 @@ public interface WorkoutMapper {
 
     List<LocalDate> completedDates(@Param("userId") long userId);
 
-    record StatsBase(long completedCount, long totalMinutes) {
+    record StatsBase(long completedCount, long totalMinutes, long todayWatchMinutes) {
     }
 
     final class NewWorkout {

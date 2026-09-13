@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.SensorV4Mapper">
+
+    <resultMap id="historicalBindingResultMap" type="com.qinglian.fitness.mapper.SensorV4Mapper$HistoricalBinding">
+        <constructor>
+            <arg column="id" javaType="_long"/>
+            <arg column="bed_id" javaType="_long"/>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="unbound_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="latestReadingResultMap" type="com.qinglian.fitness.mapper.SensorV4Mapper$LatestReading">
+        <constructor>
+            <arg column="boot_id" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="_int"/>
+            <arg column="sequence_number" javaType="_long"/>
+            <arg column="repetition_count" javaType="_long"/>
+            <arg column="received_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="workoutSessionResultMap" type="com.qinglian.fitness.mapper.SensorV4Mapper$WorkoutSession">
+        <constructor>
+            <arg column="id" javaType="_long"/>
+            <arg column="boot_id" javaType="java.lang.String"/>
+            <arg column="summary_received" javaType="_boolean"/>
+            <arg column="end_count" javaType="_long"/>
+            <arg column="active_duration_ms" javaType="java.lang.Long"/>
+            <arg column="started_at" javaType="java.time.LocalDateTime"/>
+            <arg column="time_quality" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="time_valid" javaType="_boolean"/>
+            <arg column="summary_payload_json" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <update id="updateMetadata">
+        update sensor_devices
+        set serial_number = #{serialNumber},
+        <choose>
+            <when test="current">
+                model = #{model},
+                firmware_version = #{firmwareVersion}
+            </when>
+            <otherwise>
+                model = coalesce(model, #{model}),
+                firmware_version = coalesce(firmware_version, #{firmwareVersion})
+            </otherwise>
+        </choose>
+        where id = #{sensorId}
+    </update>
+
+    <select id="findHistoricalBindings" resultMap="historicalBindingResultMap">
+        select b.id, b.bed_id, b.user_id, b.unbound_at
+        from sensor_device_bindings b
+        join users u on u.id = b.user_id
+        where b.sensor_id = #{sensorId}
+          and b.bound_at &lt;= #{startedAt}
+          and (b.unbound_at is null or b.unbound_at &gt;= #{endedAt})
+        order by b.bound_at desc
+        limit 2
+    </select>
+
+    <select id="hasSelectionBefore" resultType="boolean">
+        select exists (
+            select 1
+            from user_device_selections
+            where device_id = #{bedId}
+              and user_id = #{userId}
+              and selected_at &lt;= #{startedAt}
+        )
+    </select>
+
+    <update id="closeOtherSessions">
+        update sensor_workout_sessions
+        set status = 'COMPLETED',
+            training_state = 'idle',
+            ended_at = last_motion_at,
+            end_reason = #{reason}
+        where sensor_id = #{sensorId}
+          and status = 'ACTIVE'
+          and (device_session_id is null or device_session_id &lt;&gt; #{sessionId})
+    </update>
+
+    <select id="findLatestReading" resultMap="latestReadingResultMap">
+        select boot_id, schema_version, sequence_number, repetition_count, received_at
+        from sensor_latest_readings
+        where sensor_id = #{sensorId}
+    </select>
+
+    <select id="bootExists" resultType="boolean">
+        select exists (
+            select 1
+            from sensor_boots
+            where sensor_id = #{sensorId}
+              and boot_id = #{bootId}
+        )
+    </select>
+
+    <insert id="insertBoot">
+        insert into sensor_boots (sensor_id, boot_id, first_seen_at)
+        values (#{sensorId}, #{bootId}, #{firstSeenAt})
+    </insert>
+
+    <select id="lockSession" resultMap="workoutSessionResultMap" useCache="false" flushCache="true">
+        select id, boot_id, summary_received, end_count, active_duration_ms,
+               started_at, time_quality, status, time_valid, summary_payload_json
+        from sensor_workout_sessions
+        where sensor_id = #{sensorId}
+          and device_session_id = #{sessionId}
+        for update
+    </select>
+
+    <insert id="insertTelemetrySession">
+        insert into sensor_workout_sessions (
+            sensor_id, bed_id, user_id, binding_id, boot_id, schema_version,
+            device_session_id, started_at, last_motion_at, start_count, end_count,
+            active_duration_ms, training_state, time_valid, time_quality, ownership_status,
+            start_uptime_ms, end_uptime_ms, average_period_ms, min_period_ms, max_period_ms,
+            last_received_at
+        ) values (
+            #{sensorId}, #{ownership.bedId}, #{ownership.userId}, #{ownership.bindingId},
+            #{telemetry.bootId}, 4, #{telemetry.sessionId}, #{startedAt}, #{lastMotionAt},
+            0, #{telemetry.sessionRepetitionCount}, #{telemetry.activeDurationMs},
+            #{trainingState}, #{telemetry.timeValid}, #{timeQuality}, #{ownership.status},
+            #{telemetry.startUptimeMs}, #{telemetry.endUptimeMs}, #{telemetry.averagePeriodMs},
+            #{telemetry.minPeriodMs}, #{telemetry.maxPeriodMs}, #{receivedAt}
+        )
+    </insert>
+
+    <update id="updateTelemetrySession">
+        update sensor_workout_sessions
+        set bed_id = #{ownership.bedId},
+            user_id = #{ownership.userId},
+            binding_id = #{ownership.bindingId},
+            started_at = #{startedAt},
+            last_motion_at = #{lastMotionAt},
+            end_count = #{telemetry.sessionRepetitionCount},
+            active_duration_ms = #{telemetry.activeDurationMs},
+            training_state = #{trainingState},
+            time_valid = #{telemetry.timeValid},
+            time_quality = #{timeQuality},
+            ownership_status = #{ownership.status},
+            start_uptime_ms = #{telemetry.startUptimeMs},
+            end_uptime_ms = #{telemetry.endUptimeMs},
+            average_period_ms = #{telemetry.averagePeriodMs},
+            min_period_ms = #{telemetry.minPeriodMs},
+            max_period_ms = #{telemetry.maxPeriodMs},
+            last_received_at = #{receivedAt}
+        where id = #{id}
+    </update>
+
+    <insert id="upsertLatestReading">
+        insert into sensor_latest_readings (
+            sensor_id, boot_id, sequence_number, repetition_count, moving, standby,
+            sensor_ok, payload_json, received_at, schema_version, training_state
+        ) values (
+            #{sensorId}, #{telemetry.bootId}, #{telemetry.sequence}, #{telemetry.repetitionCount},
+            #{telemetry.moving}, #{telemetry.standby}, #{telemetry.sensorOk}, #{payloadJson},
+            #{receivedAt}, 4, #{telemetry.trainingState}
+        )
+        on duplicate key update
+            boot_id = values(boot_id),
+            sequence_number = values(sequence_number),
+            repetition_count = values(repetition_count),
+            moving = values(moving),
+            standby = values(standby),
+            sensor_ok = values(sensor_ok),
+            payload_json = values(payload_json),
+            received_at = values(received_at),
+            schema_version = 4,
+            training_state = values(training_state)
+    </insert>
+
+    <update id="updateLastSeen">
+        update sensor_devices
+        set last_seen_at = #{lastSeenAt}
+        where id = #{sensorId}
+    </update>
+
+    <insert id="insertSummarySession">
+        insert into sensor_workout_sessions (
+            sensor_id, bed_id, user_id, binding_id, boot_id, schema_version,
+            device_session_id, started_at, last_motion_at, ended_at, start_count, end_count,
+            status, training_state, end_reason, active_duration_ms, time_valid, time_quality,
+            ownership_status, start_uptime_ms, end_uptime_ms, average_period_ms, min_period_ms,
+            max_period_ms, summary_received, summary_payload_json, last_received_at
+        ) values (
+            #{sensorId}, #{ownership.bedId}, #{ownership.userId}, #{ownership.bindingId},
+            #{summary.bootId}, 4, #{summary.sessionId}, #{startedAt}, #{endedAt}, #{endedAt},
+            0, #{summary.repetitionCount}, 'COMPLETED', 'idle', #{summary.endReason},
+            #{summary.activeDurationMs}, #{summary.timeValid}, #{timeQuality}, #{ownership.status},
+            #{summary.startUptimeMs}, #{summary.endUptimeMs}, #{summary.averagePeriodMs},
+            #{summary.minPeriodMs}, #{summary.maxPeriodMs}, 1, #{payloadJson}, #{receivedAt}
+        )
+    </insert>
+
+    <update id="updateSummarySession">
+        update sensor_workout_sessions
+        set bed_id = #{ownership.bedId},
+            user_id = #{ownership.userId},
+            binding_id = #{ownership.bindingId},
+            started_at = #{startedAt},
+            last_motion_at = #{endedAt},
+            ended_at = #{endedAt},
+            start_count = 0,
+            end_count = #{summary.repetitionCount},
+            status = 'COMPLETED',
+            training_state = 'idle',
+            end_reason = #{summary.endReason},
+            active_duration_ms = #{summary.activeDurationMs},
+            time_valid = #{summary.timeValid},
+            time_quality = #{timeQuality},
+            ownership_status = #{ownership.status},
+            start_uptime_ms = #{summary.startUptimeMs},
+            end_uptime_ms = #{summary.endUptimeMs},
+            average_period_ms = #{summary.averagePeriodMs},
+            min_period_ms = #{summary.minPeriodMs},
+            max_period_ms = #{summary.maxPeriodMs},
+            summary_received = 1,
+            summary_payload_json = #{payloadJson},
+            last_received_at = #{receivedAt}
+        where id = #{id}
+    </update>
+</mapper>

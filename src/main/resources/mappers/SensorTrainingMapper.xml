@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.SensorTrainingMapper">
+
+    <resultMap id="trainingTotalsResultMap" type="com.qinglian.fitness.mapper.SensorTrainingMapper$TrainingTotals">
+        <constructor>
+            <arg column="completed_count" javaType="_long"/>
+            <arg column="training_duration_ms" javaType="_long"/>
+            <arg column="repetition_count" javaType="_long"/>
+            <arg column="today_training_duration_ms" javaType="_long"/>
+            <arg column="total_estimated_calories" javaType="java.math.BigDecimal"/>
+            <arg column="today_estimated_calories" javaType="java.math.BigDecimal"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="trainingDateRangeResultMap" type="com.qinglian.fitness.mapper.SensorTrainingMapper$TrainingDateRange">
+        <constructor>
+            <arg column="first_day" javaType="java.time.LocalDate"/>
+            <arg column="last_day" javaType="java.time.LocalDate"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="calorieProfileResultMap" type="com.qinglian.fitness.mapper.SensorTrainingMapper$CalorieProfile">
+        <constructor>
+            <arg column="weight_kg" javaType="java.math.BigDecimal"/>
+            <arg column="weight_defaulted" javaType="_boolean"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findCalorieProfile" resultMap="calorieProfileResultMap">
+        select <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeight"/> weight_kg,
+               <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeightDefaulted"/> weight_defaulted
+        from users u where u.id = #{userId}
+    </select>
+
+    <sql id="countedSessions">
+        from sensor_workout_sessions w
+        left join users u on u.id = w.user_id
+        where w.user_id = #{userId}
+          and <include refid="com.qinglian.fitness.mapper.SensorSql.countedWorkout"/>
+    </sql>
+
+    <!-- Active duration belongs to the Beijing day the session started.
+         The bounds are UTC; sessions with unverified clocks only enter lifetime totals. -->
+    <select id="findTotals" resultMap="trainingTotalsResultMap">
+        select coalesce(sum(case when w.status = 'COMPLETED' then 1 else 0 end), 0) completed_count,
+               coalesce(sum(<include refid="com.qinglian.fitness.mapper.SensorSql.trainingDuration"/>), 0) training_duration_ms,
+               coalesce(sum(greatest(0, w.end_count - w.start_count)), 0) repetition_count,
+               coalesce(sum(
+                   case
+                       when w.time_valid = 1
+                        and w.started_at &gt;= #{dayStart}
+                        and w.started_at &lt; #{dayEnd}
+                       then <include refid="com.qinglian.fitness.mapper.SensorSql.trainingDuration"/>
+                       else 0
+                   end
+               ), 0) today_training_duration_ms,
+               coalesce(sum(<include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/>), 0.0) total_estimated_calories,
+               coalesce(sum(
+                   case
+                       when w.time_valid = 1
+                        and w.started_at &gt;= #{dayStart}
+                        and w.started_at &lt; #{dayEnd}
+                       then <include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/>
+                       else 0.0
+                   end
+               ), 0.0) today_estimated_calories
+        <include refid="countedSessions"/>
+    </select>
+
+    <!-- Training-day counts include every Beijing calendar day touched by a session. -->
+    <select id="findTrainingDateRanges" resultMap="trainingDateRangeResultMap">
+        select distinct date(timestampadd(hour, 8, w.started_at)) first_day,
+                        date(timestampadd(hour, 8, w.last_motion_at)) last_day
+        <include refid="countedSessions"/>
+          and w.time_valid = 1
+          and w.started_at is not null
+          and w.last_motion_at is not null
+    </select>
+</mapper>

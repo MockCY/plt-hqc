@@ -3,6 +3,7 @@ package com.qinglian.fitness.auth;
 import com.qinglian.fitness.user.User;
 import jakarta.validation.constraints.NotBlank;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 public final class AuthDtos {
@@ -27,7 +28,9 @@ public final class AuthDtos {
         String phone,
         boolean phoneBound,
         String nickname,
-        String avatarUrl
+        String avatarUrl,
+        BigDecimal heightCm,
+        BigDecimal weightKg
     ) {
         public static UserView from(User user) {
             return new UserView(
@@ -35,7 +38,9 @@ public final class AuthDtos {
                 maskPhone(user.phone()),
                 user.phone() != null && !user.phone().isBlank(),
                 user.nickname(),
-                user.avatarUrl()
+                user.avatarUrl(),
+                user.heightCm(),
+                user.weightKg()
             );
         }
 

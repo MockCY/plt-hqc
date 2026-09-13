@@ -5,7 +5,24 @@
 固件 `4.0.0` 使用协议 `schemaVersion: 4`，后端同时保留 V3 接收。新建数据库的 `01-schema.sql` 已包含 V4 字段，不要重复执行 `33`。现有数据库必须先执行 `33` 再启动新版服务，应用不会自动迁移。详见 [V4 协议及统计规则](SENSOR_V4.md)。
 课程观看时间与传感器训练时间分别统计。
 
-这是 `we-plt` 健身微信小程序的 Java 后端，采用 Spring Boot + JDBC + MySQL。
+传感器训练现在返回当日、累计及单次估算卡路里，小程序与管理员使用同一口径。
+按已保存体重及训练时长、往返频率估算，未填写体重时默认 60 kg，修改体重后历史消耗同步重估。
+已有数据库需先执行 `database/36-user-body-measurements.sql`；公式、日期归属及 API 见 [卡路里估算说明](SENSOR_CALORIES.md)。
+
+个人中心的今日时长按北京时间（Asia/Shanghai）统计：传感器统计新增 `todayTrainingMinutes`
+和 `todayTrainingDurationMs`，有效时间戳的训练会话按开始日期归属当天，跨零点会话归入开始日；
+无有效时间戳的会话仅计入总时长。观看统计新增 `todayWatchMinutes`，按播放记录的
+`training_date` 累计当天实际观看秒数，旧版完成记录仍按完成日期计入并与播放记录去重。
+两类分钟数均先汇总时长再向下取整；原有 `trainingMinutes`、`trainingDurationMs`、
+`watchMinutes` 和 `totalMinutes` 继续返回总时长。本次统计字段扩展无需数据库迁移。
+
+这是 `we-plt` 健身微信小程序的 Java 后端，采用 Spring Boot + MyBatis + MySQL。
+
+数据访问规范：SQL 统一放在 `src/main/resources/mappers/`，Service 负责业务校验与事务，
+通过 Mapper 接口访问数据库。动态筛选使用 MyBatis 的 `if`、`where`、`choose` 等标签，
+参数使用 `#{...}` 绑定，不在 Java 中拼接 SQL，不使用 `${...}` 拼接外部输入。
+行锁查询须禁用查询缓存并清理本地缓存，确保每次执行 `FOR UPDATE`；迁移时保留原事务边界与加锁顺序。
+传感器训练的时长计算、有效训练条件与可见记录条件统一维护在 `SensorSql.xml`。
 
 鉴权没有引入 Spring Security、JWT、JPA 或 Flyway。服务端使用微信 `openid` 识别用户，再签发随机会话令牌；数据库只保存令牌的 SHA-256 摘要。
 
@@ -36,6 +53,22 @@
 - 已购买并开通的“手机号快速验证组件”资源包
 
 ## 3. 初始化数据库
+
+身体资料功能需先执行 `database/36-user-body-measurements.sql`，再启动新版后端。
+脚本可重复执行，只增加 `users.height_cm`、`users.weight_kg` 两个可空的 `DECIMAL(4,1)` 列；
+历史用户保留未填写状态，新建数据库的 `01-schema.sql` 已包含两列，应用不会自动执行迁移。
+`GET /api/me` 的 `user`、登录响应的 `user` 及 `PUT/PATCH /api/me` 响应增加 `heightCm`、`weightKg`。
+更新示例：`{"heightCm":170.5,"weightKg":65.2}`。身高范围为 50–250 厘米，体重为 20–300 千克，
+两者最多保留 1 位小数；省略字段会保留已保存的数据，显式 `null` 会清空对应值，两项可分别保存。
+昵称、头像的旧客户端更新方式继续有效。体重用于卡路里估算，未填写体重时按 60 kg 估算；
+身高作为身体资料保存，不参与当前估算公式。
+
+建议弹簧按红、绿、黄、蓝分别配置组数。已有数据库需先执行
+`database/35-exercise-spring-colors.sql`，再启动新版服务；新建数据库的 `01-schema.sql` 已包含该字段。
+迁移可重复执行，只增加可空的 `spring_counts` JSON 列，保留旧 `spring_sets`，不推断旧数据的颜色。
+后台动作新增、编辑以及后台/小程序动作和课程动作响应增加 `springCounts`，结构为
+`{"red":2,"green":1,"yellow":0,"blue":0}`。对象可为 `null`；非空时四个字段都必须是 0 至 20 的整数，0 表示该颜色不使用。
+提供颜色配置时以 `springCounts` 为准，并清空旧 `springSets`；未配置颜色的历史数据仍返回原组数，需后台人工补充颜色。
 
 动作难度“拉伸”更名为“挑战”需执行 `database/32-exercise-challenge-level.sql`，更新已有动作的难度字段。
 

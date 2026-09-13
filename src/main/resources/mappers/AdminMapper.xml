@@ -86,6 +86,7 @@
             <arg column="focus_image_url" javaType="java.lang.String"/>
             <arg column="focus_parts" javaType="java.lang.String"/>
             <arg column="spring_sets" javaType="java.util.List" typeHandler="com.qinglian.fitness.mapper.IntegerListTypeHandler"/>
+            <arg column="spring_counts" javaType="com.qinglian.fitness.catalog.SpringCounts" typeHandler="com.qinglian.fitness.mapper.SpringCountsTypeHandler"/>
             <arg column="key_points" javaType="java.lang.String"/>
             <arg column="common_mistakes" javaType="java.lang.String"/>
             <arg column="instruction_audio_url" javaType="java.lang.String"/>
@@ -418,13 +419,14 @@
 
     <insert id="insertExercise" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         insert into exercises(name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
-            cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url, focus_image_url, focus_parts, spring_sets, key_points, common_mistakes, instruction_audio_url, status, sort_order)
+            cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url, focus_image_url, focus_parts, spring_sets, spring_counts, key_points, common_mistakes, instruction_audio_url, status, sort_order)
         values (trim(#{request.name}), trim(#{request.bodyPart}), trim(#{request.level}),
             '核心床（Reformer）', #{request.suggestedSets}, coalesce(trim(#{request.target}), ''),
             trim(#{request.cue}), trim(#{request.safetyTip}), nullif(trim(#{request.coverImage}), ''),
             nullif(trim(#{request.videoUrl}), ''), nullif(trim(#{request.videoCoverImage}), ''),
             #{request.videoDurationSeconds}, nullif(trim(#{request.backgroundMusicUrl}), ''),
-            #{request.focusImageUrl}, #{request.focusParts}, #{request.springSets,typeHandler=com.qinglian.fitness.mapper.IntegerListTypeHandler}, #{request.keyPoints}, #{request.commonMistakes}, #{request.instructionAudioUrl},
+            #{request.focusImageUrl}, #{request.focusParts}, #{request.springSets,typeHandler=com.qinglian.fitness.mapper.IntegerListTypeHandler},
+            #{request.springCounts,jdbcType=VARCHAR,typeHandler=com.qinglian.fitness.mapper.SpringCountsTypeHandler}, #{request.keyPoints}, #{request.commonMistakes}, #{request.instructionAudioUrl},
             #{request.status}, #{request.sortOrder})
     </insert>
 
@@ -441,6 +443,7 @@
             background_music_url = nullif(trim(#{request.backgroundMusicUrl}), ''), status = #{request.status},
             focus_image_url = #{request.focusImageUrl}, focus_parts = #{request.focusParts},
             spring_sets = #{request.springSets,typeHandler=com.qinglian.fitness.mapper.IntegerListTypeHandler},
+            spring_counts = #{request.springCounts,jdbcType=VARCHAR,typeHandler=com.qinglian.fitness.mapper.SpringCountsTypeHandler},
             key_points = #{request.keyPoints}, common_mistakes = #{request.commonMistakes}, instruction_audio_url = #{request.instructionAudioUrl},
             sort_order = #{request.sortOrder}
         where id = #{id}
@@ -749,7 +752,7 @@
         <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </select>
 
-    <select id="lockDeviceSerialSequence" resultType="long">
+    <select id="lockDeviceSerialSequence" resultType="long" useCache="false" flushCache="true">
         select next_serial_sequence from device_models where id = #{id} for update
     </select>
 

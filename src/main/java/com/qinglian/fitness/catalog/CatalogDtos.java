@@ -42,6 +42,7 @@ public final class CatalogDtos {
         String focusImageUrl,
         String focusParts,
         List<Integer> springSets,
+        SpringCounts springCounts,
         String keyPoints,
         String commonMistakes,
         String instructionAudioUrl
@@ -65,7 +66,9 @@ public final class CatalogDtos {
         String backgroundMusicUrl,
         String instructionAudioUrl,
         List<TrainingSet> sets,
-        Integer recommendedPlays
+        Integer recommendedPlays,
+        List<Integer> springSets,
+        SpringCounts springCounts
     ) {
     }
 

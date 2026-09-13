@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.AdminSensorMapper">
+
+    <resultMap id="workoutSummary" type="java.util.LinkedHashMap" autoMapping="false">
+        <result column="repetitions" property="repetitions" javaType="java.lang.Long"/>
+        <result column="duration_ms" property="durationMs" javaType="java.lang.Long"/>
+        <result column="active_sessions" property="activeSessions" javaType="java.lang.Long"/>
+        <result column="estimated_calories" property="estimatedCalories" javaType="java.math.BigDecimal"/>
+        <result column="today_estimated_calories" property="todayEstimatedCalories" javaType="java.math.BigDecimal"/>
+    </resultMap>
+
+    <sql id="sensorProjection">
+        select s.id, s.device_id, s.device_code, s.serial_number, s.model,
+               s.firmware_version, s.status, s.created_at, s.last_seen_at,
+               b.id binding_id, b.bed_id, b.bound_at, d.serial_number bed_sn,
+               u.id user_id, u.nickname user_name, u.phone user_phone,
+               l.boot_id, l.sequence_number, l.repetition_count, l.moving,
+               l.standby, l.sensor_ok, l.received_at, l.schema_version, l.training_state,
+               case
+                   when s.status &lt;&gt; 'ACTIVE' then 'DISABLED'
+                   when l.sensor_id is null then 'WAITING'
+                   when l.standby = 1 then 'STANDBY'
+                   when l.received_at &lt;= utc_timestamp(3) - interval 90 second then 'OFFLINE'
+                   when l.sensor_ok = 0 then 'ERROR'
+                   when l.training_state = 'paused' then 'PAUSED'
+                   when l.moving = 1 then 'MOVING'
+                   else 'STILL'
+               end state
+        from sensor_devices s
+        left join sensor_device_bindings b on b.sensor_id = s.id and b.unbound_at is null
+        left join devices d on d.id = b.bed_id
+        left join user_device_selections own on own.device_id = b.bed_id
+        left join users u on u.id = own.user_id
+        left join sensor_latest_readings l on l.sensor_id = s.id
+    </sql>
+
+    <sql id="sensorFilters">
+        <where>
+            <if test="filter.pattern != null">
+                and concat_ws(' ', device_id, device_code, bed_sn, user_name, user_phone, user_id)
+                    like #{filter.pattern} escape '!'
+            </if>
+            <if test="filter.state != 'ALL'">
+                and state = #{filter.state}
+            </if>
+            <choose>
+                <when test="filter.binding == 'BOUND'">
+                    and binding_id is not null
+                </when>
+                <when test="filter.binding == 'UNBOUND'">
+                    and binding_id is null
+                </when>
+            </choose>
+            <if test="filter.bedId != null">
+                and bed_id = #{filter.bedId}
+            </if>
+            <if test="filter.userId != null">
+                and user_id = #{filter.userId}
+            </if>
+        </where>
+    </sql>
+
+    <select id="countSensors" resultType="long">
+        select count(*)
+        from (<include refid="sensorProjection"/>) sensors
+        <include refid="sensorFilters"/>
+    </select>
+
+    <select id="findSensors" resultMap="com.qinglian.fitness.mapper.SensorMapper.sensorRow">
+        select *
+        from (<include refid="sensorProjection"/>) sensors
+        <include refid="sensorFilters"/>
+        order by id desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findSensor" resultMap="com.qinglian.fitness.mapper.SensorMapper.sensorRow">
+        <include refid="sensorProjection"/>
+        where s.id = #{id}
+    </select>
+
+    <select id="findLatestPayload" resultType="string">
+        select payload_json
+        from sensor_latest_readings
+        where sensor_id = #{sensorId}
+    </select>
+
+    <sql id="bindingJoins">
+        from sensor_device_bindings b
+        left join devices d on d.id = b.bed_id
+        left join users u on u.id = b.user_id
+        where b.sensor_id = #{sensorId}
+    </sql>
+
+    <select id="countBindings" resultType="long">
+        select count(*)
+        <include refid="bindingJoins"/>
+    </select>
+
+    <select id="findBindings" resultMap="com.qinglian.fitness.mapper.SensorMapper.sensorRow">
+        select b.id, b.sensor_id, b.bed_id, b.user_id, b.bound_at, b.unbound_at,
+               d.serial_number bed_sn, u.nickname user_name, u.phone user_phone
+        <include refid="bindingJoins"/>
+        order by b.id desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <!-- Keep persisted summaries and generated ownership columns out of the API projection. -->
+    <sql id="workoutColumns">
+        w.id, w.sensor_id, w.bed_id, w.user_id, w.boot_id, w.started_at,
+        w.last_motion_at, w.ended_at, w.start_count, w.end_count, w.status,
+        w.end_reason, w.schema_version, w.device_session_id, w.binding_id,
+        w.active_duration_ms, w.training_state, w.time_valid, w.time_quality,
+        w.ownership_status, w.start_uptime_ms, w.end_uptime_ms, w.average_period_ms,
+        w.min_period_ms, w.max_period_ms, w.summary_received, w.last_received_at,
+        <include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/> estimated_calories,
+        <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeight"/> calorie_weight_kg,
+        <include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeightDefaulted"/> calorie_weight_defaulted,
+        s.device_id, s.device_code, d.serial_number bed_sn,
+        u.nickname user_name, u.phone user_phone
+    </sql>
+
+    <sql id="workoutJoins">
+        from sensor_workout_sessions w
+        join sensor_devices s on s.id = w.sensor_id
+        left join devices d on d.id = w.bed_id
+        left join users u on u.id = w.user_id
+    </sql>
+
+    <sql id="workoutFilters">
+        <where>
+            <include refid="com.qinglian.fitness.mapper.SensorSql.visibleWorkout"/>
+            <if test="filter.pattern != null">
+                and concat_ws(' ', s.device_id, s.device_code, d.serial_number, u.nickname, u.phone, w.user_id)
+                    like #{filter.pattern} escape '!'
+            </if>
+            <if test="filter.sensorId != null">
+                and w.sensor_id = #{filter.sensorId}
+            </if>
+            <if test="filter.bedId != null">
+                and w.bed_id = #{filter.bedId}
+            </if>
+            <if test="filter.userId != null">
+                and w.user_id = #{filter.userId}
+            </if>
+            <if test="filter.status != 'ALL'">
+                and w.status = #{filter.status}
+            </if>
+            <if test="filter.from != null">
+                and w.started_at &gt;= #{filter.from}
+            </if>
+            <if test="filter.until != null">
+                and w.started_at &lt; #{filter.until}
+            </if>
+        </where>
+    </sql>
+
+    <select id="countWorkouts" resultType="long">
+        select count(*)
+        <include refid="workoutJoins"/>
+        <include refid="workoutFilters"/>
+    </select>
+
+    <select id="findWorkouts" resultMap="com.qinglian.fitness.mapper.SensorMapper.sensorRow">
+        select <include refid="workoutColumns"/>
+        <include refid="workoutJoins"/>
+        <include refid="workoutFilters"/>
+        order by w.id desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="summarizeWorkouts" resultMap="workoutSummary">
+        select coalesce(sum(greatest(0, w.end_count - w.start_count)), 0) repetitions,
+               coalesce(sum(
+                   case
+                       when <include refid="com.qinglian.fitness.mapper.SensorSql.countedWorkout"/>
+                       then <include refid="com.qinglian.fitness.mapper.SensorSql.trainingDuration"/>
+                       else 0
+                   end
+               ), 0) duration_ms,
+               coalesce(sum(case when w.status = 'ACTIVE' then 1 else 0 end), 0) active_sessions,
+               coalesce(sum(<include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/>), 0.0) estimated_calories,
+               coalesce(sum(
+                   case
+                       when w.time_valid = 1
+                        and w.started_at &gt;= #{dayStart}
+                        and w.started_at &lt; #{dayEnd}
+                       then <include refid="com.qinglian.fitness.mapper.SensorSql.estimatedCalories"/>
+                       else 0.0
+                   end
+               ), 0.0) today_estimated_calories
+        <include refid="workoutJoins"/>
+        <include refid="workoutFilters"/>
+    </select>
+
+    <select id="findWorkout" resultMap="com.qinglian.fitness.mapper.SensorMapper.sensorRow">
+        select <include refid="workoutColumns"/>
+        <include refid="workoutJoins"/>
+        where w.id = #{id}
+          and <include refid="com.qinglian.fitness.mapper.SensorSql.visibleWorkout"/>
+    </select>
+
+    <select id="lockSensor" resultType="java.lang.Long" flushCache="true" useCache="false">
+        select id
+        from sensor_devices
+        where id = #{id}
+        for update
+    </select>
+
+    <update id="unbind">
+        update sensor_device_bindings
+        set unbound_at = #{unboundAt}
+        where id = #{bindingId}
+          and sensor_id = #{sensorId}
+          and unbound_at is null
+    </update>
+
+    <update id="updateStatus">
+        update sensor_devices
+        set status = #{status}
+        where id = #{id}
+    </update>
+
+    <update id="endWorkouts">
+        update sensor_workout_sessions
+        set status = 'COMPLETED',
+            training_state = 'idle',
+            ended_at = last_motion_at,
+            end_reason = #{reason}
+        where sensor_id = #{sensorId}
+          and status = 'ACTIVE'
+    </update>
+
+    <delete id="deleteBindingChallenges">
+        delete from sensor_binding_challenges
+        where sensor_id = #{sensorId}
+    </delete>
+
+</mapper>

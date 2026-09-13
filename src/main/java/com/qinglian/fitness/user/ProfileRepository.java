@@ -24,7 +24,9 @@ public class ProfileRepository {
 
     public User updateProfile(long userId, UpdateProfileRequest request) {
         profileMapper.updateProfile(
-            userId, blankToNull(request.nickname()), blankToNull(request.avatarUrl())
+            userId, blankToNull(request.getNickname()), blankToNull(request.getAvatarUrl()),
+            request.isHeightCmProvided(), request.getHeightCm(),
+            request.isWeightKgProvided(), request.getWeightKg()
         );
         return userRepository.findById(userId).orElseThrow();
     }

@@ -22,10 +22,10 @@
 
     <sql id="deviceColumns">id, device_model</sql>
 
-    <select id="lockUser" resultType="java.lang.Long">
+    <select id="lockUser" resultType="java.lang.Long" useCache="false" flushCache="true">
         select id from users where id = #{userId} for update
     </select>
-    <select id="lockDevice" resultType="java.lang.Long">
+    <select id="lockDevice" resultType="java.lang.Long" useCache="false" flushCache="true">
         select id from devices where id = #{deviceId} for update
     </select>
     <update id="recordBound">
@@ -67,7 +67,7 @@
         values (#{serialNumber}, #{qrToken}, trim(#{deviceModel}), null, trim(#{deviceName}), 'THIRD_PARTY')
     </insert>
 
-    <select id="findBindingUserId" resultType="java.lang.Long">
+    <select id="findBindingUserId" resultType="java.lang.Long" useCache="false" flushCache="true">
         select user_id from user_device_selections where device_id = #{deviceId} for update
     </select>
 

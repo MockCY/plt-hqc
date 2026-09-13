@@ -15,11 +15,13 @@
             <arg column="status" javaType="java.lang.String"/>
             <arg column="created_at" javaType="java.time.Instant"/>
             <arg column="updated_at" javaType="java.time.Instant"/>
+            <arg column="height_cm" javaType="java.math.BigDecimal"/>
+            <arg column="weight_kg" javaType="java.math.BigDecimal"/>
         </constructor>
     </resultMap>
 
     <sql id="userColumns">
-        id, openid, unionid, phone, nickname, avatar_url, status, created_at, updated_at
+        id, openid, unionid, phone, nickname, avatar_url, status, created_at, updated_at, height_cm, weight_kg
     </sql>
 
     <select id="findByOpenId" resultMap="userResultMap">

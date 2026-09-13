@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinglian.fitness.mapper.SensorSql">
+    <!-- A completed session counts only after at least one repetition. -->
+    <sql id="countedWorkout">w.end_count &gt; w.start_count</sql>
+
+    <sql id="visibleWorkout">
+        (w.status = 'ACTIVE' or <include refid="com.qinglian.fitness.mapper.SensorSql.countedWorkout"/>)
+    </sql>
+
+    <sql id="trainingDuration">
+        case
+            when w.schema_version = 4 then greatest(0, coalesce(w.active_duration_ms, 0))
+            else greatest(0, floor(timestampdiff(microsecond, w.started_at, w.last_motion_at) / 1000.0))
+        end
+    </sql>
+
+    <!-- Current owner weight is deliberately applied at read time, including historical rows. -->
+    <sql id="calorieWeight">coalesce(u.weight_kg, 60.0)</sql>
+
+    <sql id="calorieWeightDefaulted">case when u.weight_kg is null then 1 else 0 end</sql>
+
+    <!-- Product estimate, not a measured energy value: use the owner's weight and 3-6 MET.
+         MET = 3 + 3 * min(repetitions / minutes / 30, 1).
+         Algebraically reduced to avoid dividing by zero for a new active session.
+         Round each session before summing so history and totals agree. -->
+    <sql id="estimatedCalories">
+        case
+            when w.start_count &gt;= 0 and w.end_count &gt; w.start_count
+             and (<include refid="com.qinglian.fitness.mapper.SensorSql.trainingDuration"/>) &gt; 0
+            then round(
+                (<include refid="com.qinglian.fitness.mapper.SensorSql.calorieWeight"/>) * 3.5 / 200 * (
+                    3 * cast((<include refid="com.qinglian.fitness.mapper.SensorSql.trainingDuration"/>) as decimal(30, 0))
+                    + 6000 * least(
+                        cast(w.end_count as decimal(30, 0)) - cast(w.start_count as decimal(30, 0)),
+                        (<include refid="com.qinglian.fitness.mapper.SensorSql.trainingDuration"/>) / 2000.0
+                    )
+                ) / 60000.0,
+                1
+            )
+            else 0.0
+        end
+    </sql>
+</mapper>

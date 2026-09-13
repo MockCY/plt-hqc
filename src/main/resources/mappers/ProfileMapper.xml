@@ -21,6 +21,12 @@
         update users
         set nickname = coalesce(#{nickname}, nickname),
             avatar_url = coalesce(#{avatarUrl}, avatar_url),
+            <if test="heightCmProvided">
+                height_cm = #{heightCm,jdbcType=DECIMAL},
+            </if>
+            <if test="weightKgProvided">
+                weight_kg = #{weightKg,jdbcType=DECIMAL},
+            </if>
             updated_at = current_timestamp
         where id = #{userId}
     </update>

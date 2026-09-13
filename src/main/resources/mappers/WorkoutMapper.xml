@@ -21,6 +21,7 @@
         <constructor>
             <arg column="completed_count" javaType="_long"/>
             <arg column="total_minutes" javaType="_long"/>
+            <arg column="today_watch_minutes" javaType="_long"/>
         </constructor>
     </resultMap>
 
@@ -136,7 +137,8 @@
     <select id="stats" resultMap="statsResultMap">
         select (select count(*) from workout_records where user_id = #{userId} and completion_percent >= 80)
              + (select count(*) from custom_workout_records where user_id = #{userId} and completion_percent >= 80) completed_count,
-               floor(coalesce(sum(active_seconds), 0) / 60) total_minutes
+               floor(coalesce(sum(active_seconds), 0) / 60) total_minutes,
+               floor(coalesce(sum(case when training_date = #{today} then active_seconds else 0 end), 0) / 60) today_watch_minutes
         from (<include refid="activityHistory"/>) history
     </select>
 
