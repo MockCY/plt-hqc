@@ -1,5 +1,8 @@
 package com.qinglian.fitness.admin;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import com.qinglian.fitness.catalog.TrainingSet;
 import com.qinglian.fitness.catalog.ExerciseCategory;
 import com.qinglian.fitness.catalog.SpringCounts;
@@ -186,21 +189,65 @@ public final class AdminDtos {
     }
 
     public record CampaignRow(
-        long id, String code, String title, String rulesText, LocalDate startDate,
+        long id, String code, String title, String bannerImage, String posterImage, String buttonText, String rulesText, LocalDate startDate,
         LocalDate endDate, String status, int sortOrder, long checkinCount,
         Instant createdAt, Instant updatedAt
     ) {
     }
 
-    public record CampaignRequest(
-        @NotBlank @Size(max = 40) String code,
-        @NotBlank @Size(max = 80) String title,
-        @NotBlank @Size(max = 1000) String rulesText,
-        LocalDate startDate,
-        LocalDate endDate,
-        @NotBlank String status,
-        int sortOrder
-    ) {
+    public static final class CampaignRequest {
+        @JsonProperty @Size(max = 40) private String code;
+        @JsonProperty @NotBlank @Size(max = 80) private String title;
+        @JsonProperty @Size(max = 1024) private String bannerImage;
+        @JsonProperty @Size(max = 1024) private String posterImage;
+        @JsonProperty @Size(max = 20) private String buttonText;
+        @JsonProperty @NotBlank @Size(max = 1000) private String rulesText;
+        @JsonProperty private LocalDate startDate;
+        @JsonProperty private LocalDate endDate;
+        @JsonProperty @NotBlank private String status;
+        @JsonProperty private int sortOrder;
+        @JsonIgnore private boolean bannerImageProvided;
+
+        public CampaignRequest() {
+        }
+
+        public CampaignRequest(String code, String title, String posterImage, String buttonText, String rulesText,
+                               LocalDate startDate, LocalDate endDate, String status, int sortOrder) {
+            this.code = code;
+            this.title = title;
+            this.posterImage = posterImage;
+            this.buttonText = buttonText;
+            this.rulesText = rulesText;
+            this.startDate = startDate;
+            this.endDate = endDate;
+            this.status = status;
+            this.sortOrder = sortOrder;
+        }
+
+        public CampaignRequest(String code, String title, String bannerImage, String posterImage, String buttonText,
+                               String rulesText, LocalDate startDate, LocalDate endDate, String status, int sortOrder) {
+            this(code, title, posterImage, buttonText, rulesText, startDate, endDate, status, sortOrder);
+            setBannerImage(bannerImage);
+        }
+
+        // Old admin clients omit this newly added property. Explicit null still means remove the banner.
+        @JsonSetter("bannerImage")
+        public void setBannerImage(String bannerImage) {
+            this.bannerImage = bannerImage;
+            this.bannerImageProvided = true;
+        }
+
+        public String code() { return code; }
+        public String title() { return title; }
+        public String bannerImage() { return bannerImage; }
+        public String posterImage() { return posterImage; }
+        public String buttonText() { return buttonText; }
+        public String rulesText() { return rulesText; }
+        public LocalDate startDate() { return startDate; }
+        public LocalDate endDate() { return endDate; }
+        public String status() { return status; }
+        public int sortOrder() { return sortOrder; }
+        public boolean bannerImageProvided() { return bannerImageProvided; }
     }
 
     public record WorkoutRow(
@@ -216,7 +263,7 @@ public final class AdminDtos {
     }
 
     public record DeviceModelRow(
-        long id, String name, String brand, String snPrefix, long deviceCount,
+        long id, String name, String brand, String snPrefix, String imageUrl, long deviceCount,
         Instant createdAt, Instant updatedAt
     ) {
     }
@@ -225,7 +272,8 @@ public final class AdminDtos {
         @NotBlank @Size(max = 100) String name,
         @NotBlank @Pattern(regexp = "(?i)(manhart|ARVELLO)") String brand,
         @NotBlank @Size(min = 2, max = 12)
-        @Pattern(regexp = "[A-Za-z0-9]+", message = "SN 前缀只能包含字母和数字") String snPrefix
+        @Pattern(regexp = "[A-Za-z0-9]+", message = "SN 前缀只能包含字母和数字") String snPrefix,
+        @Size(max = 500, message = "型号图片地址不能超过500个字符") String imageUrl
     ) {
     }
 

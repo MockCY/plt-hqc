@@ -62,6 +62,11 @@ DB_URL=jdbc:mysql://host.docker.internal:3306/hqc_plt?useUnicode=true&characterE
 
 ## 构建并启动
 
+型号图片升级需在部署新版后端前执行 `database/37-device-model-images.sql`。
+该脚本可重复执行，只新增可空的 `device_models.image_url`，不会为历史型号设置同一张默认图。
+应用和部署工作流不会自动执行数据库迁移。部署后需在后台为各型号分别上传并保存产品图片，
+未配置图片的型号及第三方设备不返回产品图片。
+
 已有数据库依次执行 `database/14-sequential-device-sn.sql`、`database/15-online-presence.sql` 和
 `database/16-plan-presentation.sql` 和 `database/17-device-brand-and-source.sql`，分别补齐设备序列号、每日在线用户、计划展示字段以及设备品牌与来源字段。
 

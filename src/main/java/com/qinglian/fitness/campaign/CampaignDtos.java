@@ -11,6 +11,9 @@ public final class CampaignDtos {
     public record CampaignStatus(
         String code,
         String title,
+        String bannerImage,
+        String posterImage,
+        String buttonText,
         List<String> rules,
         boolean checkedInToday,
         int totalCheckins,
@@ -21,6 +24,9 @@ public final class CampaignDtos {
     public record CheckinResult(boolean checkedInToday, int totalCheckins, LocalDate checkinDate) {
     }
 
-    public record CampaignSummary(String code, String title, List<String> rules, LocalDate startDate, LocalDate endDate) {
+    public record CampaignSummary(
+        String code, String title, String bannerImage, String posterImage, String buttonText,
+        List<String> rules, LocalDate startDate, LocalDate endDate
+    ) {
     }
 }

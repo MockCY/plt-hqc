@@ -27,9 +27,12 @@ public interface CampaignMapper {
 
     int countAll(@Param("userId") long userId, @Param("code") String code);
 
-    record CampaignContentRow(String title, String rulesText) {
+    record CampaignContentRow(String title, String bannerImage, String posterImage, String buttonText, String rulesText) {
     }
 
-    record CampaignCatalogRow(String code, String title, String rulesText, LocalDate startDate, LocalDate endDate) {
+    record CampaignCatalogRow(
+        String code, String title, String bannerImage, String posterImage, String buttonText,
+        String rulesText, LocalDate startDate, LocalDate endDate
+    ) {
     }
 }

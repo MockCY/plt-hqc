@@ -246,7 +246,7 @@ public class AdminRepository {
 
     public CampaignRow campaign(long id) {
         CampaignRow row = mapper.findCampaign(id);
-        if (row == null) throw notFound("CAMPAIGN_NOT_FOUND", "训练营不存在");
+        if (row == null) throw notFound("CAMPAIGN_NOT_FOUND", "活动不存在");
         return row;
     }
 
@@ -254,25 +254,39 @@ public class AdminRepository {
     public CampaignRow createCampaign(CampaignRequest request) {
         validateContentStatus(request.status());
         validateDates(request.startDate(), request.endDate());
-        InsertCommand<CampaignRequest> command = new InsertCommand<>(request);
+        String code = request.code() == null || request.code().isBlank() ? "ACT_" + randomToken() : request.code();
+        InsertCommand<CampaignRequest> command = new InsertCommand<>(normalizeCampaignPresentation(request, code));
         mapper.insertCampaign(command);
         return campaign(generatedId(command));
     }
 
     public CampaignRow updateCampaign(long id, CampaignRequest request) {
-        campaign(id);
+        CampaignRow existing = campaign(id);
         validateContentStatus(request.status());
         validateDates(request.startDate(), request.endDate());
-        mapper.updateCampaign(id, request);
+        mapper.updateCampaign(id, normalizeCampaignPresentation(request, existing.code()));
         return campaign(id);
     }
 
     public void deleteCampaign(long id) {
         CampaignRow item = campaign(id);
         if (item.checkinCount() > 0) {
-            throw new ApiException(HttpStatus.CONFLICT, "CAMPAIGN_IN_USE", "该训练营已有打卡记录，请下架而不是删除");
+            throw new ApiException(HttpStatus.CONFLICT, "CAMPAIGN_IN_USE", "该活动已有打卡记录，请下架而不是删除");
         }
         mapper.deleteCampaign(id);
+    }
+
+    private CampaignRequest normalizeCampaignPresentation(CampaignRequest request, String code) {
+        String bannerImage = request.bannerImage() == null || request.bannerImage().isBlank()
+            ? null : request.bannerImage().trim();
+        String posterImage = request.posterImage() == null || request.posterImage().isBlank()
+            ? null : request.posterImage().trim();
+        String buttonText = request.buttonText() == null || request.buttonText().isBlank()
+            ? "查看活动" : request.buttonText().trim();
+        CampaignRequest normalized = new CampaignRequest(code, request.title(), posterImage, buttonText, request.rulesText(),
+            request.startDate(), request.endDate(), request.status(), request.sortOrder());
+        if (request.bannerImageProvided()) normalized.setBannerImage(bannerImage);
+        return normalized;
     }
 
     public PageResult<WorkoutRow> workouts(String query, int page, int pageSize) {
@@ -581,7 +595,8 @@ public class AdminRepository {
         if (!prefix.startsWith(expected)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_PREFIX_INVALID", "该品牌的 SN 前缀必须以 " + expected + " 开头");
         }
-        return new DeviceModelRequest(request.name().trim(), brand, prefix);
+        String imageUrl = request.imageUrl() == null || request.imageUrl().isBlank() ? null : request.imageUrl().trim();
+        return new DeviceModelRequest(request.name().trim(), brand, prefix, imageUrl);
     }
 
     private DeviceModelRow requireDeviceModel(String deviceModel, String brand) {
@@ -592,7 +607,7 @@ public class AdminRepository {
         if (!row.brand().equals(normalizeBrand(brand))) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_MODEL_BRAND_MISMATCH", "所选型号不属于该品牌");
         }
-        validateDeviceModel(new DeviceModelRequest(row.name(), row.brand(), row.snPrefix()));
+        validateDeviceModel(new DeviceModelRequest(row.name(), row.brand(), row.snPrefix(), row.imageUrl()));
         return row;
     }
 

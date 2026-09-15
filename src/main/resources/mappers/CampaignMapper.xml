@@ -7,12 +7,15 @@
     <resultMap id="campaignContentMap" type="com.qinglian.fitness.mapper.CampaignMapper$CampaignContentRow">
         <constructor>
             <arg column="title" javaType="java.lang.String"/>
+            <arg column="banner_image" javaType="java.lang.String"/>
+            <arg column="poster_image" javaType="java.lang.String"/>
+            <arg column="button_text" javaType="java.lang.String"/>
             <arg column="rules_text" javaType="java.lang.String"/>
         </constructor>
     </resultMap>
 
     <select id="findOpenCampaign" resultMap="campaignContentMap">
-        select title, rules_text
+        select title, banner_image, poster_image, button_text, rules_text
         from campaigns
         where code = #{code}
           and status = 'PUBLISHED'
@@ -24,6 +27,9 @@
         <constructor>
             <arg column="code" javaType="java.lang.String"/>
             <arg column="title" javaType="java.lang.String"/>
+            <arg column="banner_image" javaType="java.lang.String"/>
+            <arg column="poster_image" javaType="java.lang.String"/>
+            <arg column="button_text" javaType="java.lang.String"/>
             <arg column="rules_text" javaType="java.lang.String"/>
             <arg column="start_date" javaType="java.time.LocalDate"/>
             <arg column="end_date" javaType="java.time.LocalDate"/>
@@ -31,7 +37,7 @@
     </resultMap>
 
     <select id="findOpenCampaigns" resultMap="campaignCatalogMap">
-        select code, title, rules_text, start_date, end_date
+        select code, title, banner_image, poster_image, button_text, rules_text, start_date, end_date
         from campaigns
         where status = 'PUBLISHED'
           and (start_date is null or start_date &lt;= #{date})

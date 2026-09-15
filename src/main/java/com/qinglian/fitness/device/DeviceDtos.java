@@ -20,6 +20,7 @@ public final class DeviceDtos {
         String brand,
         String deviceSource,
         String serialNumber,
+        String imageUrl,
         LocalDateTime boundAt
     ) {
     }

@@ -134,6 +134,9 @@
             <idArg column="id" javaType="_long"/>
             <arg column="code" javaType="java.lang.String"/>
             <arg column="title" javaType="java.lang.String"/>
+            <arg column="banner_image" javaType="java.lang.String"/>
+            <arg column="poster_image" javaType="java.lang.String"/>
+            <arg column="button_text" javaType="java.lang.String"/>
             <arg column="rules_text" javaType="java.lang.String"/>
             <arg column="start_date" javaType="java.time.LocalDate"/>
             <arg column="end_date" javaType="java.time.LocalDate"/>
@@ -210,6 +213,7 @@
             <arg column="name" javaType="java.lang.String"/>
             <arg column="brand" javaType="java.lang.String"/>
             <arg column="sn_prefix" javaType="java.lang.String"/>
+            <arg column="image_url" javaType="java.lang.String"/>
             <arg column="device_count" javaType="_long"/>
             <arg column="created_at" javaType="java.time.Instant"/>
             <arg column="updated_at" javaType="java.time.Instant"/>
@@ -528,7 +532,7 @@
                 or lower(c.code) like concat('%', lower(#{query}), '%')
             </if>
         </where>
-        group by c.id, c.code, c.title, c.rules_text, c.start_date, c.end_date, c.status,
+        group by c.id, c.code, c.title, c.banner_image, c.poster_image, c.button_text, c.rules_text, c.start_date, c.end_date, c.status,
                  c.sort_order, c.created_at, c.updated_at
         order by c.sort_order, c.updated_at desc
         limit #{limit} offset #{offset}
@@ -539,21 +543,25 @@
         from campaigns c
         left join campaign_checkins cc on cc.campaign_code = c.code
         where c.id = #{id}
-        group by c.id, c.code, c.title, c.rules_text, c.start_date, c.end_date, c.status,
+        group by c.id, c.code, c.title, c.banner_image, c.poster_image, c.button_text, c.rules_text, c.start_date, c.end_date, c.status,
                  c.sort_order, c.created_at, c.updated_at
     </select>
 
     <insert id="insertCampaign" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into campaigns(code, title, rules_text, start_date, end_date, status, sort_order)
+        insert into campaigns(code, title, banner_image, poster_image, button_text, rules_text, start_date, end_date, status, sort_order)
         values (upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
-            trim(#{request.title}), trim(#{request.rulesText}), #{request.startDate}, #{request.endDate},
+            trim(#{request.title}), #{request.bannerImage}, #{request.posterImage}, #{request.buttonText},
+            trim(#{request.rulesText}), #{request.startDate}, #{request.endDate},
             #{request.status}, #{request.sortOrder})
     </insert>
 
     <update id="updateCampaign">
         update campaigns
-        set code = upper(replace(replace(trim(#{request.code}), '-', '_'), ' ', '_')),
-            title = trim(#{request.title}), rules_text = trim(#{request.rulesText}),
+        set title = trim(#{request.title}), poster_image = #{request.posterImage}, button_text = #{request.buttonText},
+            <if test="request.bannerImageProvided">
+                banner_image = #{request.bannerImage},
+            </if>
+            rules_text = trim(#{request.rulesText}),
             start_date = #{request.startDate}, end_date = #{request.endDate}, status = #{request.status},
             sort_order = #{request.sortOrder}
         where id = #{id}
@@ -622,7 +630,7 @@
         select m.*, count(d.id) device_count
         from device_models m
         left join devices d on d.device_model = m.name and d.device_source = 'OWN'
-        group by m.id, m.name, m.brand, m.sn_prefix, m.created_at, m.updated_at
+        group by m.id, m.name, m.brand, m.sn_prefix, m.image_url, m.created_at, m.updated_at
         order by m.id
     </select>
 
@@ -631,7 +639,7 @@
         from device_models m
         left join devices d on d.device_model = m.name and d.device_source = 'OWN'
         where m.id = #{id}
-        group by m.id, m.name, m.brand, m.sn_prefix, m.created_at, m.updated_at
+        group by m.id, m.name, m.brand, m.sn_prefix, m.image_url, m.created_at, m.updated_at
     </select>
 
     <select id="findDeviceModelByName" resultMap="deviceModelRowMap">
@@ -639,17 +647,18 @@
         from device_models m
         left join devices d on d.device_model = m.name and d.device_source = 'OWN'
         where m.name = #{name}
-        group by m.id, m.name, m.brand, m.sn_prefix, m.created_at, m.updated_at
+        group by m.id, m.name, m.brand, m.sn_prefix, m.image_url, m.created_at, m.updated_at
     </select>
 
     <insert id="insertDeviceModel" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into device_models(name, brand, sn_prefix)
-        values (trim(#{request.name}), #{request.brand}, upper(trim(#{request.snPrefix})))
+        insert into device_models(name, brand, sn_prefix, image_url)
+        values (trim(#{request.name}), #{request.brand}, upper(trim(#{request.snPrefix})), #{request.imageUrl})
     </insert>
 
     <update id="updateDeviceModel">
         update device_models
-        set name = trim(#{request.name}), brand = #{request.brand}, sn_prefix = upper(trim(#{request.snPrefix}))
+        set name = trim(#{request.name}), brand = #{request.brand}, sn_prefix = upper(trim(#{request.snPrefix})),
+            image_url = #{request.imageUrl}
         where id = #{id}
     </update>
 

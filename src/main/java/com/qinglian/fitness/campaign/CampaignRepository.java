@@ -24,11 +24,14 @@ public class CampaignRepository {
         LocalDate today = LocalDate.now();
         CampaignMapper.CampaignContentRow content = campaignMapper.findOpenCampaign(code, today);
         if (content == null) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "CAMPAIGN_NOT_FOUND", "训练营不存在或暂未开放");
+            throw new ApiException(HttpStatus.NOT_FOUND, "CAMPAIGN_NOT_FOUND", "活动不存在或暂未开放");
         }
         return new CampaignStatus(
             code,
             content.title(),
+            content.bannerImage(),
+            content.posterImage(),
+            content.buttonText(),
             content.rulesText().lines().filter(line -> !line.isBlank()).toList(),
             countForDate(userId, code, today) > 0,
             countAll(userId, code),
@@ -38,7 +41,7 @@ public class CampaignRepository {
 
     public List<CampaignDtos.CampaignSummary> catalog() {
         return campaignMapper.findOpenCampaigns(LocalDate.now()).stream()
-            .map(row -> new CampaignDtos.CampaignSummary(row.code(), row.title(),
+            .map(row -> new CampaignDtos.CampaignSummary(row.code(), row.title(), row.bannerImage(), row.posterImage(), row.buttonText(),
                 row.rulesText() == null ? List.of() : row.rulesText().lines().filter(line -> !line.isBlank()).toList(),
                 row.startDate(), row.endDate()))
             .toList();

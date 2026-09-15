@@ -54,6 +54,29 @@
 
 ## 3. 初始化数据库
 
+活动图片字段需依次执行 `database/38-campaign-presentation.sql`、`database/39-campaign-banner-image.sql`，再启动新版后端。
+两个脚本均可重复执行。第 39 号迁移仅增加 `banner_image`，首次新增时将原 `poster_image` 复制到首页横幅，
+保留原详情海报、活动内容、时间戳与打卡记录；重跑不会覆盖或恢复已清空的横幅。
+新库的 `08-admin-console.sql` 已包含全部字段。应用不会自动执行迁移。
+后台活动新增、编辑、列表和详情使用独立的 `bannerImage`（首页横幅）、`posterImage`（详情海报），图片地址均最长 1024 个字符。
+通过现有媒体上传接口分别上传图片，设置一张图片不会同步修改另一张。
+图片地址显式传 `null` 或空字符串表示清除；旧客户端更新时未传 `bannerImage` 会保留已有横幅。
+后台已移除按钮文字配置；新版小程序在没有首页横幅时固定显示“查看活动”。`title` 用于详情及无横幅的首页入口。
+`buttonText` 仅为兼容旧接口保留，最长 20 个字符，请求未填写或为空时保存为“查看活动”；本次移除配置无需新增 SQL 迁移。
+`GET /api/campaigns/catalog` 和 `GET /api/campaigns/{code}` 均独立返回两张图片，并保留兼容字段 `buttonText`。
+点击首页整张横幅仍通过活动 `code` 打开对应详情。发布状态、日期限制与现有打卡接口行为保持兼容。
+后台无需填写活动代码：创建请求省略 `code`、传 `null` 或空白时，后端自动生成 `ACT_` 加 32 位 UUID 的代码。
+旧客户端创建时显式提供的代码仍兼容；编辑时始终保留原代码，确保已有详情链接和打卡记录继续对应原活动。
+自动生成代码使用现有字段及唯一约束，无需新增 SQL 迁移。
+
+设备型号独立图片需先执行 `database/37-device-model-images.sql`，再启动新版后端。
+脚本可重复执行，只增加 `device_models.image_url` 可空字段；历史型号保持未配置，不设置共用默认图。
+新库的 `01-schema.sql` 和 `06-devices.sql` 已包含该字段，应用不会自动执行迁移。
+后台型号新增、编辑和查询使用 `imageUrl`（最长 500 个字符），空值或空字符串表示清除图片。
+通过现有媒体上传接口上传各型号的产品图，再分别保存到对应型号。
+`GET /api/devices`、`GET /api/devices/current` 和绑定响应增加 `imageUrl`，仅按自有设备的品牌与型号匹配图片；
+第三方、型号不匹配或未配置图片时返回 `null`。设备接口仍要求登录，未绑定时不返回设备图片。
+
 身体资料功能需先执行 `database/36-user-body-measurements.sql`，再启动新版后端。
 脚本可重复执行，只增加 `users.height_cm`、`users.weight_kg` 两个可空的 `DECIMAL(4,1)` 列；
 历史用户保留未填写状态，新建数据库的 `01-schema.sql` 已包含两列，应用不会自动执行迁移。
@@ -142,12 +165,9 @@ $env:ADMIN_PASSWORD='请使用足够长的随机密码'
 .\mvnw.cmd spring-boot:run
 ```
 
-测试使用独立的 MySQL 数据库，不再使用 H2。测试启动时会重建测试表，禁止把测试连接指向正式业务库：
+运行自动化单元与映射回归测试。活动映射测试在独立 H2 内存数据库中执行真实 SQL，验证后台保存、公开查询与旧数据默认值，不访问业务数据库：
 
 ```powershell
-$env:TEST_DB_URL='jdbc:mysql://127.0.0.1:3306/hqc_plt_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true'
-$env:TEST_DB_USERNAME='root'
-$env:TEST_DB_PASSWORD='测试数据库密码'
 .\mvnw.cmd test
 ```
 
@@ -202,7 +222,9 @@ Authorization: Bearer <token>
 | GET/PUT/DELETE | `/api/favorites` | 是 | 查询、添加或取消动作与课程收藏 |
 | GET/POST/DELETE | `/api/custom-courses` | 是 | 管理自定义课程 |
 | GET/POST | `/api/feedback` | 是 | 查询和提交问题反馈 |
-| GET/POST | `/api/campaigns/{code}` | 是 | 查询训练营状态并打卡 |
+| GET | `/api/campaigns/catalog` | 否 | 查询当前开放的活动及入口海报、标题（保留旧版兼容字段 `buttonText`） |
+| GET | `/api/campaigns/{code}` | 是 | 查询活动内容与打卡状态 |
+| POST | `/api/campaigns/{code}/checkins` | 是 | 活动打卡 |
 
 完整请求样例见 [examples/api.http](examples/api.http)。
 
@@ -233,7 +255,7 @@ Authorization: Bearer <token>
 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD`，应用会在尚无管理员账号时创建首个账号。创建完成后，密码仅以
 BCrypt 摘要保存在数据库中。
 
-后台支持数据概览、用户查询、课程与动作维护、训练计划与训练营维护、训练记录查询、反馈处理、
+后台支持数据概览、用户查询、课程与动作维护、训练计划与活动维护、训练记录查询、反馈处理、
 媒体上传和操作日志。设备管理支持单台新增和单次最多 100 台的批量新增，批量设备会在同一事务中生成连续 SN；
 还可勾选最多 100 台自有设备，导出包含品牌、型号、SN 和完整设备标签图片的 Excel 文件。
 生产环境不要保留空的 `ADMIN_PASSWORD`。

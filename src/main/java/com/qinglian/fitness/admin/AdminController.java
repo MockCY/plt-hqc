@@ -227,14 +227,14 @@ public class AdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public CampaignRow createCampaign(@Valid @RequestBody CampaignRequest body, HttpServletRequest request) {
         CampaignRow created = repository.createCampaign(body);
-        audit(request, "CREATE", "CAMPAIGN", created.id(), "新增训练营：" + created.title());
+        audit(request, "CREATE", "CAMPAIGN", created.id(), "新增活动：" + created.title());
         return created;
     }
 
     @PutMapping("/campaigns/{id}")
     public CampaignRow updateCampaign(@PathVariable long id, @Valid @RequestBody CampaignRequest body, HttpServletRequest request) {
         CampaignRow updated = repository.updateCampaign(id, body);
-        audit(request, "UPDATE", "CAMPAIGN", id, "更新训练营：" + updated.title());
+        audit(request, "UPDATE", "CAMPAIGN", id, "更新活动：" + updated.title());
         return updated;
     }
 
@@ -243,7 +243,7 @@ public class AdminController {
     public void deleteCampaign(@PathVariable long id, HttpServletRequest request) {
         String title = repository.campaign(id).title();
         repository.deleteCampaign(id);
-        audit(request, "DELETE", "CAMPAIGN", id, "删除训练营：" + title);
+        audit(request, "DELETE", "CAMPAIGN", id, "删除活动：" + title);
     }
 
     @GetMapping("/workouts")
