@@ -16,24 +16,35 @@ public final class PlanDtos {
         String description,
         String subtitle,
         String coverImage,
+        String detailImage,
         String level,
         String trainingScene,
         Integer sessionMinutes,
         String benefitOne,
         String benefitTwo,
         String benefitThree,
-        List<PlanItemView> items
+        List<PlanDayView> days
     ) {
     }
 
-    public record PlanItemView(
+    public record PlanDayView(
         long id,
-        int dayOffset,
+        int dayNumber,
         LocalDate trainingDate,
-        long courseId,
-        String courseTitle,
+        String title,
         int durationMinutes,
-        String status
+        String status,
+        List<PlanExerciseView> exercises
+    ) {
+    }
+
+    public record PlanExerciseView(
+        long id,
+        long exerciseId,
+        String exerciseName,
+        int repetitions,
+        int setCount,
+        int sortOrder
     ) {
     }
 
@@ -44,16 +55,20 @@ public final class PlanDtos {
         String description,
         String subtitle,
         String coverImage,
+        String detailImage,
         String level,
         String trainingScene,
         Integer sessionMinutes,
         String benefitOne,
         String benefitTwo,
         String benefitThree,
-        int courseCount
+        int dayCount
     ) {
     }
 
     public record PlanSelection(long planId, String title, boolean selected) {
+    }
+
+    public record PlanDayCompletion(long planId, int dayNumber, boolean completed) {
     }
 }

@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS training_plans (
     description VARCHAR(300) NULL,
     subtitle VARCHAR(160) NULL,
     cover_image VARCHAR(500) NULL,
+    detail_image VARCHAR(500) NULL,
     level VARCHAR(30) NULL,
     training_scene VARCHAR(30) NULL,
     session_minutes INT NULL,
@@ -171,6 +172,45 @@ CREATE TABLE IF NOT EXISTS training_plan_items (
     KEY idx_plan_items_plan (plan_id, day_offset, sort_order),
     CONSTRAINT fk_plan_items_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE,
     CONSTRAINT fk_plan_items_course FOREIGN KEY (course_id) REFERENCES courses(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS training_plan_days (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    plan_id BIGINT UNSIGNED NOT NULL,
+    day_number INT NOT NULL,
+    title VARCHAR(80) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_plan_day_number (plan_id, day_number),
+    KEY idx_plan_days_plan (plan_id, sort_order),
+    CONSTRAINT fk_plan_days_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS training_plan_day_exercises (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    plan_day_id BIGINT UNSIGNED NOT NULL,
+    exercise_id BIGINT UNSIGNED NOT NULL,
+    repetitions INT NOT NULL DEFAULT 10,
+    set_count INT NOT NULL DEFAULT 2,
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_plan_day_exercise (plan_day_id, exercise_id),
+    KEY idx_plan_day_exercises_day (plan_day_id, sort_order),
+    CONSTRAINT fk_plan_day_exercises_day FOREIGN KEY (plan_day_id) REFERENCES training_plan_days(id) ON DELETE CASCADE,
+    CONSTRAINT fk_plan_day_exercises_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_plan_day_completions (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    plan_id BIGINT UNSIGNED NOT NULL,
+    day_number INT NOT NULL,
+    completed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_plan_day_completion (user_id, plan_id, day_number),
+    KEY idx_plan_day_completions_user (user_id, plan_id),
+    CONSTRAINT fk_plan_day_completions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_plan_day_completions_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS workout_records (

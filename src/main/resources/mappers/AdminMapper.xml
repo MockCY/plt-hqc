@@ -106,6 +106,7 @@
             <arg column="description" javaType="java.lang.String"/>
             <arg column="subtitle" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="detail_image" javaType="java.lang.String"/>
             <arg column="level" javaType="java.lang.String"/>
             <arg column="training_scene" javaType="java.lang.String"/>
             <arg column="session_minutes" javaType="java.lang.Integer"/>
@@ -119,12 +120,22 @@
         </constructor>
     </resultMap>
 
-    <resultMap id="planItemRowMap" type="com.qinglian.fitness.admin.AdminDtos$PlanItemRow">
+    <resultMap id="planDayRowMap" type="com.qinglian.fitness.mapper.AdminMapper$PlanDayData">
         <constructor>
             <idArg column="id" javaType="_long"/>
-            <arg column="course_id" javaType="_long"/>
-            <arg column="course_title" javaType="java.lang.String"/>
-            <arg column="day_offset" javaType="_int"/>
+            <arg column="day_number" javaType="_int"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="sort_order" javaType="_int"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="planDayExerciseRowMap" type="com.qinglian.fitness.admin.AdminDtos$PlanDayExerciseRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="exercise_id" javaType="_long"/>
+            <arg column="exercise_name" javaType="java.lang.String"/>
+            <arg column="repetitions" javaType="_int"/>
+            <arg column="set_count" javaType="_int"/>
             <arg column="sort_order" javaType="_int"/>
         </constructor>
     </resultMap>
@@ -471,20 +482,27 @@
         select * from training_plans where id = #{id}
     </select>
 
-    <select id="findPlanItems" resultMap="planItemRowMap">
-        select i.id, i.course_id, c.title course_title, i.day_offset, i.sort_order
-        from training_plan_items i
-        join courses c on c.id = i.course_id
-        where i.plan_id = #{planId}
-        order by i.day_offset, i.sort_order
+    <select id="findPlanDays" resultMap="planDayRowMap">
+        select id, day_number, title, sort_order
+        from training_plan_days
+        where plan_id = #{planId}
+        order by sort_order, day_number
+    </select>
+
+    <select id="findPlanDayExercises" resultMap="planDayExerciseRowMap">
+        select i.id, i.exercise_id, e.name exercise_name, i.repetitions, i.set_count, i.sort_order
+        from training_plan_day_exercises i
+        join exercises e on e.id = i.exercise_id
+        where i.plan_day_id = #{planDayId}
+        order by i.sort_order, i.id
     </select>
 
     <insert id="insertPlan" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into training_plans(title, week_number, sessions_per_week, description, subtitle, cover_image,
+        insert into training_plans(title, week_number, sessions_per_week, description, subtitle, cover_image, detail_image,
             level, training_scene, session_minutes, benefit_one, benefit_two, benefit_three, active, sort_order)
         values (trim(#{request.title}), #{request.weekNumber}, #{request.sessionsPerWeek},
             nullif(trim(#{request.description}), ''), nullif(trim(#{request.subtitle}), ''),
-            nullif(trim(#{request.coverImage}), ''), nullif(trim(#{request.level}), ''),
+            nullif(trim(#{request.coverImage}), ''), nullif(trim(#{request.detailImage}), ''), nullif(trim(#{request.level}), ''),
             nullif(trim(#{request.trainingScene}), ''), #{request.sessionMinutes},
             nullif(trim(#{request.benefitOne}), ''), nullif(trim(#{request.benefitTwo}), ''),
             nullif(trim(#{request.benefitThree}), ''), #{request.active}, #{request.sortOrder})
@@ -496,6 +514,7 @@
             sessions_per_week = #{request.sessionsPerWeek},
             description = nullif(trim(#{request.description}), ''),
             subtitle = nullif(trim(#{request.subtitle}), ''), cover_image = nullif(trim(#{request.coverImage}), ''),
+            detail_image = nullif(trim(#{request.detailImage}), ''),
             level = nullif(trim(#{request.level}), ''), training_scene = nullif(trim(#{request.trainingScene}), ''),
             session_minutes = #{request.sessionMinutes}, benefit_one = nullif(trim(#{request.benefitOne}), ''),
             benefit_two = nullif(trim(#{request.benefitTwo}), ''), benefit_three = nullif(trim(#{request.benefitThree}), ''),
@@ -505,11 +524,16 @@
     </update>
 
     <delete id="deletePlan">delete from training_plans where id = #{id}</delete>
-    <delete id="deletePlanItems">delete from training_plan_items where plan_id = #{planId}</delete>
+    <delete id="deletePlanDays">delete from training_plan_days where plan_id = #{planId}</delete>
 
-    <insert id="insertPlanItem">
-        insert into training_plan_items(plan_id, course_id, day_offset, sort_order)
-        values (#{planId}, #{item.courseId}, #{item.dayOffset}, #{item.sortOrder})
+    <insert id="insertPlanDay" useGeneratedKeys="true" keyProperty="command.id" keyColumn="id">
+        insert into training_plan_days(plan_id, day_number, title, sort_order)
+        values (#{planId}, #{command.request.dayNumber}, trim(#{command.request.title}), #{command.request.sortOrder})
+    </insert>
+
+    <insert id="insertPlanDayExercise">
+        insert into training_plan_day_exercises(plan_day_id, exercise_id, repetitions, set_count, sort_order)
+        values (#{planDayId}, #{item.exerciseId}, #{item.repetitions}, #{item.setCount}, #{item.sortOrder})
     </insert>
 
     <select id="countCampaignsFiltered" resultType="long">

@@ -216,7 +216,7 @@ public class AdminRepository {
         InsertCommand<PlanRequest> command = new InsertCommand<>(request);
         mapper.insertPlan(command);
         long id = generatedId(command);
-        replacePlanItems(id, request.items());
+        replacePlanDays(id, request.days(), request.active());
         return plan(id);
     }
 
@@ -224,7 +224,7 @@ public class AdminRepository {
     public PlanRow updatePlan(long id, PlanRequest request) {
         plan(id);
         mapper.updatePlan(id, request);
-        replacePlanItems(id, request.items());
+        replacePlanDays(id, request.days(), request.active());
         return plan(id);
     }
 
@@ -472,9 +472,11 @@ public class AdminRepository {
 
     private PlanRow toPlanRow(PlanData row) {
         return new PlanRow(row.id(), row.title(), row.weekNumber(), row.sessionsPerWeek(), row.description(),
-            row.subtitle(), row.coverImage(), row.level(), row.trainingScene(), row.sessionMinutes(),
+            row.subtitle(), row.coverImage(), row.detailImage(), row.level(), row.trainingScene(), row.sessionMinutes(),
             row.benefitOne(), row.benefitTwo(), row.benefitThree(),
-            row.active(), row.sortOrder(), mapper.findPlanItems(row.id()), row.createdAt(), row.updatedAt());
+            row.active(), row.sortOrder(), mapper.findPlanDays(row.id()).stream()
+                .map(day -> new PlanDayRow(day.id(), day.dayNumber(), day.title(), day.sortOrder(), mapper.findPlanDayExercises(day.id())))
+                .toList(), row.createdAt(), row.updatedAt());
     }
 
     private void replaceCourseExercises(long courseId, List<Long> exerciseIds, List<CourseExerciseRequest> exercises, boolean publishing) {
@@ -506,10 +508,41 @@ public class AdminRepository {
         }
     }
 
-    private void replacePlanItems(long planId, List<PlanItemRequest> items) {
-        mapper.deletePlanItems(planId);
-        if (items == null) return;
-        for (PlanItemRequest item : items) mapper.insertPlanItem(planId, item);
+    private void replacePlanDays(long planId, List<PlanDayRequest> days, boolean publishing) {
+        List<PlanDayRequest> normalized = days == null ? List.of() : days;
+        if (publishing && normalized.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "PLAN_DAYS_REQUIRED", "开放计划前请至少添加一个训练日");
+        }
+        var dayNumbers = new java.util.HashSet<Integer>();
+        for (PlanDayRequest day : normalized) {
+            if (!dayNumbers.add(day.dayNumber())) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "PLAN_DAY_DUPLICATE", "训练日序号不能重复");
+            }
+            List<PlanDayExerciseRequest> exercises = day.exercises() == null ? List.of() : day.exercises();
+            if (publishing && exercises.isEmpty()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "PLAN_DAY_EXERCISES_REQUIRED", "开放计划前请为每个训练日选择动作");
+            }
+            var exerciseIds = new java.util.HashSet<Long>();
+            for (PlanDayExerciseRequest item : exercises) {
+                if (!exerciseIds.add(item.exerciseId())) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "PLAN_EXERCISE_DUPLICATE", "同一训练日不能重复添加动作");
+                }
+                var exercise = mapper.findExercise(item.exerciseId());
+                if (exercise == null) throw new ApiException(HttpStatus.BAD_REQUEST, "PLAN_EXERCISE_NOT_FOUND", "所选动作不存在");
+                if (publishing && !"PUBLISHED".equals(exercise.status())) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "PLAN_EXERCISE_UNPUBLISHED", "开放计划前请先发布所有训练动作");
+                }
+            }
+        }
+        mapper.deletePlanDays(planId);
+        for (PlanDayRequest day : normalized) {
+            InsertCommand<PlanDayRequest> command = new InsertCommand<>(day);
+            mapper.insertPlanDay(planId, command);
+            long dayId = generatedId(command);
+            if (day.exercises() != null) {
+                for (PlanDayExerciseRequest item : day.exercises()) mapper.insertPlanDayExercise(dayId, item);
+            }
+        }
     }
 
     private void validateContentStatus(String status) {

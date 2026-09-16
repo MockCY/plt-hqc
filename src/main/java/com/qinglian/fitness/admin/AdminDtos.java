@@ -155,27 +155,46 @@ public final class AdminDtos {
         }
     }
 
-    public record PlanItemRow(long id, long courseId, String courseTitle, int dayOffset, int sortOrder) {
+    public record PlanDayExerciseRow(
+        long id, long exerciseId, String exerciseName, int repetitions, int setCount, int sortOrder
+    ) {
+    }
+
+    public record PlanDayRow(long id, int dayNumber, String title, int sortOrder, List<PlanDayExerciseRow> exercises) {
     }
 
     public record PlanRow(
         long id, String title, int weekNumber, int sessionsPerWeek, String description,
-        String subtitle, String coverImage, String level, String trainingScene, Integer sessionMinutes,
+        String subtitle, String coverImage, String detailImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree,
-        boolean active, int sortOrder, List<PlanItemRow> items, Instant createdAt, Instant updatedAt
+        boolean active, int sortOrder, List<PlanDayRow> days, Instant createdAt, Instant updatedAt
     ) {
     }
 
-    public record PlanItemRequest(@NotNull Long courseId, @Min(0) @Max(30) int dayOffset, int sortOrder) {
+    public record PlanDayExerciseRequest(
+        @NotNull Long exerciseId,
+        @Min(1) @Max(999) int repetitions,
+        @Min(1) @Max(20) int setCount,
+        int sortOrder
+    ) {
+    }
+
+    public record PlanDayRequest(
+        @Min(1) @Max(365) int dayNumber,
+        @NotBlank @Size(max = 80) String title,
+        int sortOrder,
+        List<@Valid PlanDayExerciseRequest> exercises
+    ) {
     }
 
     public record PlanRequest(
         @NotBlank @Size(max = 80) String title,
         @Min(1) @Max(52) int weekNumber,
-        @Min(1) @Max(14) int sessionsPerWeek,
+        @Min(1) @Max(365) int sessionsPerWeek,
         @Size(max = 300) String description,
         @Size(max = 160) String subtitle,
         @Size(max = 500) String coverImage,
+        @Size(max = 500) String detailImage,
         @Size(max = 30) String level,
         @Size(max = 30) String trainingScene,
         @Min(1) @Max(600) Integer sessionMinutes,
@@ -184,7 +203,7 @@ public final class AdminDtos {
         @Size(max = 80) String benefitThree,
         boolean active,
         int sortOrder,
-        List<@Valid PlanItemRequest> items
+        List<@Valid PlanDayRequest> days
     ) {
     }
 

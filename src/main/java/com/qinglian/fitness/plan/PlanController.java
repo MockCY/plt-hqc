@@ -5,6 +5,7 @@ import com.qinglian.fitness.common.ApiException;
 import com.qinglian.fitness.plan.PlanDtos.PlanView;
 import com.qinglian.fitness.plan.PlanDtos.PlanSelection;
 import com.qinglian.fitness.plan.PlanDtos.PlanSummary;
+import com.qinglian.fitness.plan.PlanDtos.PlanDayCompletion;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,5 +49,11 @@ public class PlanController {
     public PlanSelection select(HttpServletRequest request, @PathVariable long id) {
         return repository.select(CurrentUser.id(request), id)
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_NOT_FOUND", "训练计划不存在"));
+    }
+
+    @PutMapping("/{id}/days/{dayNumber}/complete")
+    public PlanDayCompletion completeDay(HttpServletRequest request, @PathVariable long id, @PathVariable int dayNumber) {
+        return repository.completeDay(CurrentUser.id(request), id, dayNumber)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_DAY_NOT_FOUND", "当前计划中不存在该训练日"));
     }
 }

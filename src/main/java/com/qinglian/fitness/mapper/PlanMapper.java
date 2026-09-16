@@ -14,12 +14,12 @@ public interface PlanMapper {
 
     PlanHeader findPlanHeader(@Param("planId") Long planId);
 
-    List<PlanItemRow> findPlanItems(
+    List<PlanDayRow> findPlanDays(
         @Param("userId") long userId,
-        @Param("weekStart") LocalDate weekStart,
-        @Param("weekEnd") LocalDate weekEnd,
         @Param("planId") long planId
     );
+
+    List<PlanExerciseRow> findPlanDayExercises(@Param("planDayId") long planDayId);
 
     List<PlanSummary> catalog();
 
@@ -27,20 +27,29 @@ public interface PlanMapper {
 
     int createSelection(@Param("userId") long userId, @Param("planId") long planId);
 
+    int planDayExists(@Param("planId") long planId, @Param("dayNumber") int dayNumber);
+
+    int completeDay(@Param("userId") long userId, @Param("planId") long planId, @Param("dayNumber") int dayNumber);
+
     record PlanHeader(
         long id, String title, int weekNumber, int sessionsPerWeek, String description,
-        String subtitle, String coverImage, String level, String trainingScene, Integer sessionMinutes,
+        String subtitle, String coverImage, String detailImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree
     ) {
     }
 
-    record PlanItemRow(
+    record PlanDayRow(
         long id,
-        int dayOffset,
-        long courseId,
-        String courseTitle,
+        int dayNumber,
+        String title,
         int durationMinutes,
+        int exerciseCount,
         String status
+    ) {
+    }
+
+    record PlanExerciseRow(
+        long id, long exerciseId, String exerciseName, int repetitions, int setCount, int sortOrder
     ) {
     }
 }

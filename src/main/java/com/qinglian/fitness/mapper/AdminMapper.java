@@ -111,7 +111,9 @@ public interface AdminMapper {
 
     PlanData findPlan(@Param("id") long id);
 
-    List<PlanItemRow> findPlanItems(@Param("planId") long planId);
+    List<PlanDayData> findPlanDays(@Param("planId") long planId);
+
+    List<PlanDayExerciseRow> findPlanDayExercises(@Param("planDayId") long planDayId);
 
     int insertPlan(InsertCommand<PlanRequest> command);
 
@@ -119,9 +121,11 @@ public interface AdminMapper {
 
     int deletePlan(@Param("id") long id);
 
-    int deletePlanItems(@Param("planId") long planId);
+    int deletePlanDays(@Param("planId") long planId);
 
-    int insertPlanItem(@Param("planId") long planId, @Param("item") PlanItemRequest item);
+    int insertPlanDay(@Param("planId") long planId, @Param("command") InsertCommand<PlanDayRequest> command);
+
+    int insertPlanDayExercise(@Param("planDayId") long planDayId, @Param("item") PlanDayExerciseRequest item);
 
     long countCampaignsFiltered(@Param("query") String query);
 
@@ -225,10 +229,13 @@ public interface AdminMapper {
 
     record PlanData(
         long id, String title, int weekNumber, int sessionsPerWeek, String description,
-        String subtitle, String coverImage, String level, String trainingScene, Integer sessionMinutes,
+        String subtitle, String coverImage, String detailImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree,
         boolean active, int sortOrder, Instant createdAt, Instant updatedAt
     ) {
+    }
+
+    record PlanDayData(long id, int dayNumber, String title, int sortOrder) {
     }
 
     final class InsertCommand<T> {

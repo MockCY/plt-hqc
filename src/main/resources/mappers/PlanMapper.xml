@@ -13,6 +13,7 @@
             <arg column="description" javaType="java.lang.String"/>
             <arg column="subtitle" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="detail_image" javaType="java.lang.String"/>
             <arg column="level" javaType="java.lang.String"/>
             <arg column="training_scene" javaType="java.lang.String"/>
             <arg column="session_minutes" javaType="java.lang.Integer"/>
@@ -22,14 +23,25 @@
         </constructor>
     </resultMap>
 
-    <resultMap id="planItemResultMap" type="com.qinglian.fitness.mapper.PlanMapper$PlanItemRow">
+    <resultMap id="planDayResultMap" type="com.qinglian.fitness.mapper.PlanMapper$PlanDayRow">
         <constructor>
             <idArg column="id" javaType="_long"/>
-            <arg column="day_offset" javaType="_int"/>
-            <arg column="course_id" javaType="_long"/>
-            <arg column="course_title" javaType="java.lang.String"/>
+            <arg column="day_number" javaType="_int"/>
+            <arg column="title" javaType="java.lang.String"/>
             <arg column="duration_minutes" javaType="_int"/>
+            <arg column="exercise_count" javaType="_int"/>
             <arg column="item_status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="planExerciseResultMap" type="com.qinglian.fitness.mapper.PlanMapper$PlanExerciseRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="exercise_id" javaType="_long"/>
+            <arg column="exercise_name" javaType="java.lang.String"/>
+            <arg column="repetitions" javaType="_int"/>
+            <arg column="set_count" javaType="_int"/>
+            <arg column="sort_order" javaType="_int"/>
         </constructor>
     </resultMap>
 
@@ -41,13 +53,14 @@
             <arg column="description" javaType="java.lang.String"/>
             <arg column="subtitle" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
+            <arg column="detail_image" javaType="java.lang.String"/>
             <arg column="level" javaType="java.lang.String"/>
             <arg column="training_scene" javaType="java.lang.String"/>
             <arg column="session_minutes" javaType="java.lang.Integer"/>
             <arg column="benefit_one" javaType="java.lang.String"/>
             <arg column="benefit_two" javaType="java.lang.String"/>
             <arg column="benefit_three" javaType="java.lang.String"/>
-            <arg column="course_count" javaType="_int"/>
+            <arg column="day_count" javaType="_int"/>
         </constructor>
     </resultMap>
 
@@ -56,7 +69,7 @@
     </select>
 
     <select id="findPlanHeader" resultMap="planHeaderResultMap">
-        select id, title, week_number, sessions_per_week, description, subtitle, cover_image, level,
+        select id, title, week_number, sessions_per_week, description, subtitle, cover_image, detail_image, level,
                training_scene, session_minutes, benefit_one, benefit_two, benefit_three
         from training_plans
         where active = true
@@ -67,27 +80,38 @@
         limit 1
     </select>
 
-    <select id="findPlanItems" resultMap="planItemResultMap">
-        select pi.id, pi.day_offset, pi.course_id, c.title course_title, c.duration_minutes,
+    <select id="findPlanDays" resultMap="planDayResultMap">
+        select d.id, d.day_number, d.title,
+               greatest(1, ceil(coalesce(sum(coalesce(e.video_duration_seconds, 60) * greatest(de.set_count, 1)), 60) / 60)) duration_minutes,
+               count(de.id) exercise_count,
                case when exists (
-                   select 1 from workout_records wr
-                   where wr.user_id = #{userId} and wr.course_id = pi.course_id
-                     and wr.completed_at >= #{weekStart} and wr.completed_at &lt; #{weekEnd}
+                   select 1 from user_plan_day_completions pc
+                   where pc.user_id = #{userId} and pc.plan_id = #{planId} and pc.day_number = d.day_number
                ) then 'COMPLETED' else 'PENDING' end item_status
-        from training_plan_items pi
-        join courses c on c.id = pi.course_id
-        where pi.plan_id = #{planId}
-        order by pi.day_offset, pi.sort_order
+        from training_plan_days d
+        left join training_plan_day_exercises de on de.plan_day_id = d.id
+        left join exercises e on e.id = de.exercise_id
+        where d.plan_id = #{planId}
+        group by d.id, d.day_number, d.title, d.sort_order
+        order by d.sort_order, d.day_number
+    </select>
+
+    <select id="findPlanDayExercises" resultMap="planExerciseResultMap">
+        select de.id, de.exercise_id, e.name exercise_name, de.repetitions, de.set_count, de.sort_order
+        from training_plan_day_exercises de
+        join exercises e on e.id = de.exercise_id
+        where de.plan_day_id = #{planDayId}
+        order by de.sort_order, de.id
     </select>
 
     <select id="catalog" resultMap="planSummaryResultMap">
-        select p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.level,
+        select p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.detail_image, p.level,
                p.training_scene, p.session_minutes, p.benefit_one, p.benefit_two, p.benefit_three,
-               count(pi.id) course_count
+               count(d.id) day_count
         from training_plans p
-        left join training_plan_items pi on pi.plan_id = p.id
+        left join training_plan_days d on d.plan_id = p.id
         where p.active = true
-        group by p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.level,
+        group by p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.detail_image, p.level,
                  p.training_scene, p.session_minutes, p.benefit_one, p.benefit_two, p.benefit_three, p.sort_order
         order by p.sort_order, p.id
     </select>
@@ -101,6 +125,16 @@
     <insert id="createSelection">
         insert into user_plan_selections(user_id, plan_id)
         values (#{userId}, #{planId})
+    </insert>
+
+    <select id="planDayExists" resultType="int">
+        select count(*) from training_plan_days where plan_id = #{planId} and day_number = #{dayNumber}
+    </select>
+
+    <insert id="completeDay">
+        insert into user_plan_day_completions(user_id, plan_id, day_number)
+        values (#{userId}, #{planId}, #{dayNumber})
+        on duplicate key update completed_at = current_timestamp(3)
     </insert>
 
 </mapper>
