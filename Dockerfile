@@ -14,6 +14,9 @@ RUN ./mvnw -B clean test package
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /workspace/target/ARVELLO.jar /app/app.jar
 RUN mkdir -p /app/logs && chown 10001:0 /app/logs
 

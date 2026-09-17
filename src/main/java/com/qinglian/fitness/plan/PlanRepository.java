@@ -32,8 +32,8 @@ public class PlanRepository {
         LocalDate startDate = LocalDate.now();
         List<PlanDayView> days = planDays(userId, header.id(), startDate);
         return Optional.of(new PlanView(
-            header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(),
-            header.description(), header.subtitle(), header.coverImage(), header.detailImage(), header.level(), header.trainingScene(),
+            header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(), header.cycleDays(),
+            header.description(), header.subtitle(), header.coverImage(), header.detailImage(), header.homeImage(), header.level(), header.trainingScene(),
             header.sessionMinutes(), header.benefitOne(), header.benefitTwo(), header.benefitThree(), days
         ));
     }
@@ -43,8 +43,8 @@ public class PlanRepository {
         if (header == null) return Optional.empty();
         List<PlanDayView> days = planDays(0L, header.id(), LocalDate.now());
         return Optional.of(new PlanView(
-            header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(), header.description(),
-            header.subtitle(), header.coverImage(), header.detailImage(), header.level(), header.trainingScene(), header.sessionMinutes(),
+            header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(), header.cycleDays(), header.description(),
+            header.subtitle(), header.coverImage(), header.detailImage(), header.homeImage(), header.level(), header.trainingScene(), header.sessionMinutes(),
             header.benefitOne(), header.benefitTwo(), header.benefitThree(), days
         ));
     }

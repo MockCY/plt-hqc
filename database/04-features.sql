@@ -82,13 +82,13 @@ CREATE TABLE IF NOT EXISTS campaign_checkins (
     CONSTRAINT fk_campaign_checkins_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-INSERT INTO training_plans(id, title, week_number, sessions_per_week, description, active, sort_order)
+INSERT INTO training_plans(id, title, week_number, sessions_per_week, cycle_days, description, active, sort_order)
 VALUES
-    (2, '核心稳定计划', 1, 3, '用四周建立核心控制，每周三次，适合完成基础训练后继续进阶。', TRUE, 20),
-    (3, '舒展恢复计划', 1, 2, '每周两次肩背和全身舒展，适合久坐、训练后恢复和轻量活动日。', TRUE, 30)
+    (2, '核心稳定计划', 1, 3, 7, '用四周建立核心控制，每周三次，适合完成基础训练后继续进阶。', TRUE, 20),
+    (3, '舒展恢复计划', 1, 2, 7, '每周两次肩背和全身舒展，适合久坐、训练后恢复和轻量活动日。', TRUE, 30)
 ON DUPLICATE KEY UPDATE
     title = VALUES(title), week_number = VALUES(week_number), sessions_per_week = VALUES(sessions_per_week),
-    description = VALUES(description), active = VALUES(active), sort_order = VALUES(sort_order);
+    cycle_days = VALUES(cycle_days), description = VALUES(description), active = VALUES(active), sort_order = VALUES(sort_order);
 
 INSERT INTO training_plan_items(id, plan_id, course_id, day_offset, sort_order)
 VALUES

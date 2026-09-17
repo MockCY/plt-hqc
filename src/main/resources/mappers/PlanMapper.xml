@@ -10,10 +10,12 @@
             <arg column="title" javaType="java.lang.String"/>
             <arg column="week_number" javaType="_int"/>
             <arg column="sessions_per_week" javaType="_int"/>
+            <arg column="cycle_days" javaType="_int"/>
             <arg column="description" javaType="java.lang.String"/>
             <arg column="subtitle" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
             <arg column="detail_image" javaType="java.lang.String"/>
+            <arg column="home_image" javaType="java.lang.String"/>
             <arg column="level" javaType="java.lang.String"/>
             <arg column="training_scene" javaType="java.lang.String"/>
             <arg column="session_minutes" javaType="java.lang.Integer"/>
@@ -50,10 +52,12 @@
             <idArg column="id" javaType="_long"/>
             <arg column="title" javaType="java.lang.String"/>
             <arg column="sessions_per_week" javaType="_int"/>
+            <arg column="cycle_days" javaType="_int"/>
             <arg column="description" javaType="java.lang.String"/>
             <arg column="subtitle" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
             <arg column="detail_image" javaType="java.lang.String"/>
+            <arg column="home_image" javaType="java.lang.String"/>
             <arg column="level" javaType="java.lang.String"/>
             <arg column="training_scene" javaType="java.lang.String"/>
             <arg column="session_minutes" javaType="java.lang.Integer"/>
@@ -69,7 +73,7 @@
     </select>
 
     <select id="findPlanHeader" resultMap="planHeaderResultMap">
-        select id, title, week_number, sessions_per_week, description, subtitle, cover_image, detail_image, level,
+        select id, title, week_number, sessions_per_week, cycle_days, description, subtitle, cover_image, detail_image, home_image, level,
                training_scene, session_minutes, benefit_one, benefit_two, benefit_three
         from training_plans
         where active = true
@@ -105,13 +109,13 @@
     </select>
 
     <select id="catalog" resultMap="planSummaryResultMap">
-        select p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.detail_image, p.level,
+        select p.id, p.title, p.sessions_per_week, p.cycle_days, p.description, p.subtitle, p.cover_image, p.detail_image, p.home_image, p.level,
                p.training_scene, p.session_minutes, p.benefit_one, p.benefit_two, p.benefit_three,
                count(d.id) day_count
         from training_plans p
         left join training_plan_days d on d.plan_id = p.id
         where p.active = true
-        group by p.id, p.title, p.sessions_per_week, p.description, p.subtitle, p.cover_image, p.detail_image, p.level,
+        group by p.id, p.title, p.sessions_per_week, p.cycle_days, p.description, p.subtitle, p.cover_image, p.detail_image, p.home_image, p.level,
                  p.training_scene, p.session_minutes, p.benefit_one, p.benefit_two, p.benefit_three, p.sort_order
         order by p.sort_order, p.id
     </select>

@@ -213,6 +213,7 @@ public class AdminRepository {
 
     @Transactional
     public PlanRow createPlan(PlanRequest request) {
+        validatePlanCycle(request);
         InsertCommand<PlanRequest> command = new InsertCommand<>(request);
         mapper.insertPlan(command);
         long id = generatedId(command);
@@ -222,6 +223,7 @@ public class AdminRepository {
 
     @Transactional
     public PlanRow updatePlan(long id, PlanRequest request) {
+        validatePlanCycle(request);
         plan(id);
         mapper.updatePlan(id, request);
         replacePlanDays(id, request.days(), request.active());
@@ -471,8 +473,8 @@ public class AdminRepository {
     }
 
     private PlanRow toPlanRow(PlanData row) {
-        return new PlanRow(row.id(), row.title(), row.weekNumber(), row.sessionsPerWeek(), row.description(),
-            row.subtitle(), row.coverImage(), row.detailImage(), row.level(), row.trainingScene(), row.sessionMinutes(),
+        return new PlanRow(row.id(), row.title(), row.weekNumber(), row.sessionsPerWeek(), row.cycleDays(), row.description(),
+            row.subtitle(), row.coverImage(), row.detailImage(), row.homeImage(), row.level(), row.trainingScene(), row.sessionMinutes(),
             row.benefitOne(), row.benefitTwo(), row.benefitThree(),
             row.active(), row.sortOrder(), mapper.findPlanDays(row.id()).stream()
                 .map(day -> new PlanDayRow(day.id(), day.dayNumber(), day.title(), day.sortOrder(), mapper.findPlanDayExercises(day.id())))
@@ -542,6 +544,17 @@ public class AdminRepository {
             if (day.exercises() != null) {
                 for (PlanDayExerciseRequest item : day.exercises()) mapper.insertPlanDayExercise(dayId, item);
             }
+        }
+    }
+
+    private void validatePlanCycle(PlanRequest request) {
+        int trainingDayCount = request.days() == null ? 0 : request.days().size();
+        if (request.cycleDays() < trainingDayCount) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "PLAN_CYCLE_TOO_SHORT",
+                "计划周期不能少于训练天数（当前 " + trainingDayCount + " 天）"
+            );
         }
     }
 

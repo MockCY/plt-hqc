@@ -39,6 +39,10 @@ app:
     session-ttl: ${ADMIN_SESSION_TTL:12h}
   media:
     root: ${MEDIA_ROOT:${user.dir}/data/media}
+    video-transcoding:
+      enabled: ${MEDIA_VIDEO_TRANSCODING_ENABLED:true}
+      ffmpeg-command: ${FFMPEG_COMMAND:ffmpeg}
+      timeout-seconds: ${MEDIA_VIDEO_TRANSCODING_TIMEOUT_SECONDS:900}
 
 logging:
   pattern:

@@ -56,16 +56,16 @@ public final class AdminDtos {
 
     public record UserRow(
         long id, String nickname, String phone, String avatarUrl, String status,
-        long workoutCount, long totalMinutes, Instant createdAt, Instant updatedAt,
+        long workoutCount, long totalMinutes, long totalSeconds, Instant createdAt, Instant updatedAt,
         com.qinglian.fitness.presence.PresenceMapper.Summary presence
     ) {
         public UserRow(long id, String nickname, String phone, String avatarUrl, String status,
-                       long workoutCount, long totalMinutes, Instant createdAt, Instant updatedAt) {
-            this(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, createdAt, updatedAt, null);
+                       long workoutCount, long totalMinutes, long totalSeconds, Instant createdAt, Instant updatedAt) {
+            this(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, createdAt, updatedAt, null);
         }
 
         public UserRow withPresence(com.qinglian.fitness.presence.PresenceMapper.Summary summary) {
-            return new UserRow(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, createdAt, updatedAt, summary);
+            return new UserRow(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, createdAt, updatedAt, summary);
         }
     }
 
@@ -164,8 +164,8 @@ public final class AdminDtos {
     }
 
     public record PlanRow(
-        long id, String title, int weekNumber, int sessionsPerWeek, String description,
-        String subtitle, String coverImage, String detailImage, String level, String trainingScene, Integer sessionMinutes,
+        long id, String title, int weekNumber, int sessionsPerWeek, int cycleDays, String description,
+        String subtitle, String coverImage, String detailImage, String homeImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree,
         boolean active, int sortOrder, List<PlanDayRow> days, Instant createdAt, Instant updatedAt
     ) {
@@ -191,10 +191,12 @@ public final class AdminDtos {
         @NotBlank @Size(max = 80) String title,
         @Min(1) @Max(52) int weekNumber,
         @Min(1) @Max(365) int sessionsPerWeek,
+        @Min(1) @Max(365) int cycleDays,
         @Size(max = 300) String description,
         @Size(max = 160) String subtitle,
         @Size(max = 500) String coverImage,
         @Size(max = 500) String detailImage,
+        @Size(max = 500) String homeImage,
         @Size(max = 30) String level,
         @Size(max = 30) String trainingScene,
         @Min(1) @Max(600) Integer sessionMinutes,

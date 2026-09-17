@@ -8,20 +8,30 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class MediaStorageService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MediaStorageService.class);
+    private static final String VIDEO_CONTENT_TYPE = "video/mp4";
+    private static final int TRANSCODE_LOG_LIMIT = 4_000;
 
     private static final Map<String, Set<String>> ALLOWED_TYPES = Map.of(
         "image", Set.of("image/jpeg", "image/png", "image/webp"),
@@ -44,9 +54,19 @@ public class MediaStorageService {
     );
 
     private final Path root;
+    private final boolean videoTranscodingEnabled;
+    private final String ffmpegCommand;
+    private final long videoTranscodingTimeoutSeconds;
 
-    public MediaStorageService(@Value("${app.media.root}") String root) {
+    public MediaStorageService(
+            @Value("${app.media.root}") String root,
+            @Value("${app.media.video-transcoding.enabled:true}") boolean videoTranscodingEnabled,
+            @Value("${app.media.video-transcoding.ffmpeg-command:ffmpeg}") String ffmpegCommand,
+            @Value("${app.media.video-transcoding.timeout-seconds:900}") long videoTranscodingTimeoutSeconds) {
         this.root = Path.of(root).toAbsolutePath().normalize();
+        this.videoTranscodingEnabled = videoTranscodingEnabled;
+        this.ffmpegCommand = ffmpegCommand;
+        this.videoTranscodingTimeoutSeconds = Math.max(30, videoTranscodingTimeoutSeconds);
     }
 
     public StoredMedia store(MultipartFile file, String kind) {
@@ -62,7 +82,9 @@ public class MediaStorageService {
 
         LocalDate today = LocalDate.now();
         String relativeDirectory = normalizedKind + "s/" + today.getYear() + "/" + String.format("%02d", today.getMonthValue());
-        String filename = UUID.randomUUID() + EXTENSIONS.get(contentType);
+        String mediaId = UUID.randomUUID().toString();
+        String storedContentType = "video".equals(normalizedKind) && videoTranscodingEnabled ? VIDEO_CONTENT_TYPE : contentType;
+        String filename = mediaId + EXTENSIONS.get(storedContentType);
         Path directory = root.resolve(relativeDirectory).normalize();
         Path target = directory.resolve(filename).normalize();
         if (!target.startsWith(root)) {
@@ -71,15 +93,98 @@ public class MediaStorageService {
 
         try {
             Files.createDirectories(directory);
-            try (InputStream input = file.getInputStream()) {
-                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
-            }
+            if ("video".equals(normalizedKind) && videoTranscodingEnabled) transcodeVideo(file, contentType, directory, target, mediaId);
+            else copy(file, target);
         } catch (IOException exception) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "MEDIA_SAVE_FAILED", "媒体文件保存失败");
         }
 
         String path = "/api/media/files/" + relativeDirectory + "/" + filename;
-        return new StoredMedia(path, normalizedKind, contentType, file.getSize(), file.getOriginalFilename());
+        try {
+            return new StoredMedia(path, normalizedKind, storedContentType, Files.size(target), file.getOriginalFilename());
+        } catch (IOException exception) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "MEDIA_SAVE_FAILED", "媒体文件保存失败");
+        }
+    }
+
+    private void copy(MultipartFile file, Path target) throws IOException {
+        try (InputStream input = file.getInputStream()) {
+            Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void transcodeVideo(MultipartFile file, String contentType, Path directory, Path target, String mediaId)
+            throws IOException {
+        Path source = directory.resolve("." + mediaId + ".source" + EXTENSIONS.get(contentType));
+        Path output = directory.resolve("." + mediaId + ".transcoding.mp4");
+        Path log = directory.resolve("." + mediaId + ".ffmpeg.log");
+        try {
+            copy(file, source);
+            List<String> command = List.of(
+                ffmpegCommand,
+                "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+                "-fflags", "+genpts", "-i", source.toString(),
+                "-map", "0:v:0", "-map", "0:a:0?",
+                "-vf", "scale=w='min(1280,iw)':h='min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                "-maxrate", "1800k", "-bufsize", "3600k", "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+                "-af", "aresample=async=1:first_pts=0",
+                "-fps_mode", "cfr", "-avoid_negative_ts", "make_zero",
+                "-movflags", "+faststart", output.toString()
+            );
+            Process process = new ProcessBuilder(command)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(log.toFile())
+                .start();
+            boolean completed;
+            try {
+                completed = process.waitFor(videoTranscodingTimeoutSeconds, TimeUnit.SECONDS);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                process.destroyForcibly();
+                throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "VIDEO_TRANSCODE_INTERRUPTED", "视频处理被中断，请重新上传");
+            }
+            if (!completed) {
+                process.destroyForcibly();
+                throw new ApiException(HttpStatus.REQUEST_TIMEOUT, "VIDEO_TRANSCODE_TIMEOUT", "视频处理超时，请压缩后重新上传");
+            }
+            if (process.exitValue() != 0 || !Files.isRegularFile(output) || Files.size(output) == 0) {
+                LOGGER.warn("Video transcoding failed: {}", readTranscodeLog(log));
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VIDEO_TRANSCODE_FAILED", "视频处理失败，请检查文件编码后重新上传");
+            }
+            moveAtomically(output, target);
+        } finally {
+            deleteQuietly(source, output, log);
+        }
+    }
+
+    private void moveAtomically(Path source, Path target) throws IOException {
+        try {
+            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException exception) {
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private String readTranscodeLog(Path log) {
+        try {
+            String detail = Files.readString(log, StandardCharsets.UTF_8).trim();
+            if (detail.length() > TRANSCODE_LOG_LIMIT) detail = detail.substring(detail.length() - TRANSCODE_LOG_LIMIT);
+            return detail.isBlank() ? "FFmpeg did not return an error message" : detail;
+        } catch (IOException exception) {
+            return "FFmpeg error log could not be read";
+        }
+    }
+
+    private void deleteQuietly(Path... paths) {
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException exception) {
+                LOGGER.warn("Could not remove temporary media file {}", path, exception);
+            }
+        }
     }
 
     public StoredFile load(String relativePath) {

@@ -28,11 +28,11 @@ VALUES
 ON DUPLICATE KEY UPDATE
     sort_order = VALUES(sort_order), duration_seconds = VALUES(duration_seconds), target = VALUES(target);
 
-INSERT INTO training_plans(id, title, week_number, sessions_per_week, description, active, sort_order)
-VALUES (1, '新手训练计划', 1, 3, '每周三次短训练，先熟悉动作，再逐步增加时长。', TRUE, 10)
+INSERT INTO training_plans(id, title, week_number, sessions_per_week, cycle_days, description, active, sort_order)
+VALUES (1, '新手训练计划', 1, 3, 7, '每周三次短训练，先熟悉动作，再逐步增加时长。', TRUE, 10)
 ON DUPLICATE KEY UPDATE
     title = VALUES(title), week_number = VALUES(week_number), sessions_per_week = VALUES(sessions_per_week),
-    description = VALUES(description), active = VALUES(active), sort_order = VALUES(sort_order);
+    cycle_days = VALUES(cycle_days), description = VALUES(description), active = VALUES(active), sort_order = VALUES(sort_order);
 
 INSERT INTO training_plan_items(id, plan_id, course_id, day_offset, sort_order)
 VALUES

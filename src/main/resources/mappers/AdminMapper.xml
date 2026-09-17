@@ -30,6 +30,7 @@
             <arg column="status" javaType="java.lang.String"/>
             <arg column="workout_count" javaType="_long"/>
             <arg column="total_minutes" javaType="_long"/>
+            <arg column="total_seconds" javaType="_long"/>
             <arg column="created_at" javaType="java.time.Instant"/>
             <arg column="updated_at" javaType="java.time.Instant"/>
         </constructor>
@@ -103,10 +104,12 @@
             <arg column="title" javaType="java.lang.String"/>
             <arg column="week_number" javaType="_int"/>
             <arg column="sessions_per_week" javaType="_int"/>
+            <arg column="cycle_days" javaType="_int"/>
             <arg column="description" javaType="java.lang.String"/>
             <arg column="subtitle" javaType="java.lang.String"/>
             <arg column="cover_image" javaType="java.lang.String"/>
             <arg column="detail_image" javaType="java.lang.String"/>
+            <arg column="home_image" javaType="java.lang.String"/>
             <arg column="level" javaType="java.lang.String"/>
             <arg column="training_scene" javaType="java.lang.String"/>
             <arg column="session_minutes" javaType="java.lang.Integer"/>
@@ -297,22 +300,36 @@
 
     <select id="findUsers" resultMap="userRowMap">
         select u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at,
-               count(w.id) workout_count, coalesce(sum(w.duration_minutes), 0) total_minutes
+               coalesce(a.activity_count, 0) workout_count,
+               floor(coalesce(a.active_seconds, 0) / 60) total_minutes,
+               coalesce(a.active_seconds, 0) total_seconds
         from users u
-        left join workout_records w on w.user_id = u.id
+        left join (
+            select user_id,
+                   count(distinct activity_type, item_id, started_at) activity_count,
+                   sum(active_seconds) active_seconds
+            from training_activity
+            group by user_id
+        ) a on a.user_id = u.id
         <include refid="userFilters"/>
-        group by u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at
         order by u.created_at desc
         limit #{limit} offset #{offset}
     </select>
 
     <select id="findUser" resultMap="userRowMap">
         select u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at,
-               count(w.id) workout_count, coalesce(sum(w.duration_minutes), 0) total_minutes
+               coalesce(a.activity_count, 0) workout_count,
+               floor(coalesce(a.active_seconds, 0) / 60) total_minutes,
+               coalesce(a.active_seconds, 0) total_seconds
         from users u
-        left join workout_records w on w.user_id = u.id
+        left join (
+            select user_id,
+                   count(distinct activity_type, item_id, started_at) activity_count,
+                   sum(active_seconds) active_seconds
+            from training_activity
+            group by user_id
+        ) a on a.user_id = u.id
         where u.id = #{id}
-        group by u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at
     </select>
 
     <select id="countUsersByPhoneExcept" resultType="long">
@@ -498,11 +515,12 @@
     </select>
 
     <insert id="insertPlan" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into training_plans(title, week_number, sessions_per_week, description, subtitle, cover_image, detail_image,
-            level, training_scene, session_minutes, benefit_one, benefit_two, benefit_three, active, sort_order)
-        values (trim(#{request.title}), #{request.weekNumber}, #{request.sessionsPerWeek},
+        insert into training_plans(title, week_number, sessions_per_week, cycle_days, description, subtitle, cover_image, detail_image,
+            home_image, level, training_scene, session_minutes, benefit_one, benefit_two, benefit_three, active, sort_order)
+        values (trim(#{request.title}), #{request.weekNumber}, #{request.sessionsPerWeek}, #{request.cycleDays},
             nullif(trim(#{request.description}), ''), nullif(trim(#{request.subtitle}), ''),
-            nullif(trim(#{request.coverImage}), ''), nullif(trim(#{request.detailImage}), ''), nullif(trim(#{request.level}), ''),
+            nullif(trim(#{request.coverImage}), ''), nullif(trim(#{request.detailImage}), ''), nullif(trim(#{request.homeImage}), ''),
+            nullif(trim(#{request.level}), ''),
             nullif(trim(#{request.trainingScene}), ''), #{request.sessionMinutes},
             nullif(trim(#{request.benefitOne}), ''), nullif(trim(#{request.benefitTwo}), ''),
             nullif(trim(#{request.benefitThree}), ''), #{request.active}, #{request.sortOrder})
@@ -511,10 +529,11 @@
     <update id="updatePlan">
         update training_plans
         set title = trim(#{request.title}), week_number = #{request.weekNumber},
-            sessions_per_week = #{request.sessionsPerWeek},
+            sessions_per_week = #{request.sessionsPerWeek}, cycle_days = #{request.cycleDays},
             description = nullif(trim(#{request.description}), ''),
             subtitle = nullif(trim(#{request.subtitle}), ''), cover_image = nullif(trim(#{request.coverImage}), ''),
             detail_image = nullif(trim(#{request.detailImage}), ''),
+            home_image = case when #{request.homeImage} is null then home_image else nullif(trim(#{request.homeImage}), '') end,
             level = nullif(trim(#{request.level}), ''), training_scene = nullif(trim(#{request.trainingScene}), ''),
             session_minutes = #{request.sessionMinutes}, benefit_one = nullif(trim(#{request.benefitOne}), ''),
             benefit_two = nullif(trim(#{request.benefitTwo}), ''), benefit_three = nullif(trim(#{request.benefitThree}), ''),

@@ -228,8 +228,8 @@ public interface AdminMapper {
     }
 
     record PlanData(
-        long id, String title, int weekNumber, int sessionsPerWeek, String description,
-        String subtitle, String coverImage, String detailImage, String level, String trainingScene, Integer sessionMinutes,
+        long id, String title, int weekNumber, int sessionsPerWeek, int cycleDays, String description,
+        String subtitle, String coverImage, String detailImage, String homeImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree,
         boolean active, int sortOrder, Instant createdAt, Instant updatedAt
     ) {

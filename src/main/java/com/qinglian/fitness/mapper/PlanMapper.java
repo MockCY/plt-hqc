@@ -32,8 +32,8 @@ public interface PlanMapper {
     int completeDay(@Param("userId") long userId, @Param("planId") long planId, @Param("dayNumber") int dayNumber);
 
     record PlanHeader(
-        long id, String title, int weekNumber, int sessionsPerWeek, String description,
-        String subtitle, String coverImage, String detailImage, String level, String trainingScene, Integer sessionMinutes,
+        long id, String title, int weekNumber, int sessionsPerWeek, int cycleDays, String description,
+        String subtitle, String coverImage, String detailImage, String homeImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree
     ) {
     }

@@ -12,6 +12,8 @@ services:
       SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080
       MEDIA_ROOT: /data/arvello/media
+      MEDIA_VIDEO_TRANSCODING_ENABLED: "true"
+      MEDIA_VIDEO_TRANSCODING_TIMEOUT_SECONDS: 900
       LOGGING_FILE_NAME: /app/logs/application.json
       LOGGING_STRUCTURED_FORMAT_FILE: ecs
       LOGGING_LOGBACK_ROLLINGPOLICY_FILE_NAME_PATTERN: /app/logs/application.%d{yyyy-MM-dd}.%i.json
