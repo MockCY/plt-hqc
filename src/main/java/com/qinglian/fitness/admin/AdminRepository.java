@@ -70,7 +70,9 @@ public class AdminRepository {
             default -> throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PRESENCE", "在线状态无效");
         };
         Instant cutoff = Instant.now().minusSeconds(PresenceService.TIMEOUT_SECONDS);
-        List<UserRow> users = mapper.findUsers(filter, online, cutoff, paging.pageSize(), paging.offset());
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        List<UserRow> users = mapper.findUsers(filter, online, cutoff, PresenceService.TIMEOUT_SECONDS,
+            today, paging.pageSize(), paging.offset());
         Map<Long, com.qinglian.fitness.presence.PresenceMapper.Summary> summaries = new LinkedHashMap<>();
         presenceService.summaries(users.stream().map(UserRow::id).toList()).forEach(item -> summaries.put(item.userId(), item));
         List<UserRow> rows = users.stream().map(row -> row.withPresence(summaries.getOrDefault(row.id(),
@@ -86,7 +88,7 @@ public class AdminRepository {
     }
 
     public UserRow user(long id) {
-        UserRow row = mapper.findUser(id);
+        UserRow row = mapper.findUser(id, LocalDate.now(BUSINESS_ZONE));
         if (row == null) throw notFound("USER_NOT_FOUND", "用户不存在");
         return row;
     }

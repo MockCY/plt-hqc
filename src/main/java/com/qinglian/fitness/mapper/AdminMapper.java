@@ -35,11 +35,13 @@ public interface AdminMapper {
         @Param("query") String query,
         @Param("online") Boolean online,
         @Param("cutoff") Instant cutoff,
+        @Param("timeout") int timeout,
+        @Param("today") LocalDate today,
         @Param("limit") int limit,
         @Param("offset") int offset
     );
 
-    UserRow findUser(@Param("id") long id);
+    UserRow findUser(@Param("id") long id, @Param("today") LocalDate today);
 
     long countUsersByPhoneExcept(@Param("phone") String phone, @Param("id") long id);
 

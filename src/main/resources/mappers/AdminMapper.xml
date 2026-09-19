@@ -31,6 +31,7 @@
             <arg column="workout_count" javaType="_long"/>
             <arg column="total_minutes" javaType="_long"/>
             <arg column="total_seconds" javaType="_long"/>
+            <arg column="today_seconds" javaType="_long"/>
             <arg column="created_at" javaType="java.time.Instant"/>
             <arg column="updated_at" javaType="java.time.Instant"/>
         </constructor>
@@ -302,17 +303,33 @@
         select u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at,
                coalesce(a.activity_count, 0) workout_count,
                floor(coalesce(a.active_seconds, 0) / 60) total_minutes,
-               coalesce(a.active_seconds, 0) total_seconds
+               coalesce(a.active_seconds, 0) total_seconds,
+               coalesce(a.today_active_seconds, 0) today_seconds
         from users u
         left join (
             select user_id,
                    count(distinct activity_type, item_id, started_at) activity_count,
-                   sum(active_seconds) active_seconds
+                   sum(active_seconds) active_seconds,
+                   sum(case when training_date = #{today} then active_seconds else 0 end) today_active_seconds
             from training_activity
             group by user_id
         ) a on a.user_id = u.id
+        left join (
+            select user_id,
+                   max(online_at) last_online_at,
+                   max(coalesce(offline_at,
+                       if(last_seen_at &lt;= #{cutoff}, timestampadd(second, #{timeout}, last_seen_at), null))) last_offline_at
+            from user_presence_visits
+            group by user_id
+        ) p on p.user_id = u.id
         <include refid="userFilters"/>
-        order by u.created_at desc
+        order by case
+                     when p.last_online_at is null then p.last_offline_at
+                     when p.last_offline_at is null then p.last_online_at
+                     else greatest(p.last_online_at, p.last_offline_at)
+                 end desc,
+                 u.created_at desc,
+                 u.id desc
         limit #{limit} offset #{offset}
     </select>
 
@@ -320,12 +337,14 @@
         select u.id, u.nickname, u.phone, u.avatar_url, u.status, u.created_at, u.updated_at,
                coalesce(a.activity_count, 0) workout_count,
                floor(coalesce(a.active_seconds, 0) / 60) total_minutes,
-               coalesce(a.active_seconds, 0) total_seconds
+               coalesce(a.active_seconds, 0) total_seconds,
+               coalesce(a.today_active_seconds, 0) today_seconds
         from users u
         left join (
             select user_id,
                    count(distinct activity_type, item_id, started_at) activity_count,
-                   sum(active_seconds) active_seconds
+                   sum(active_seconds) active_seconds,
+                   sum(case when training_date = #{today} then active_seconds else 0 end) today_active_seconds
             from training_activity
             group by user_id
         ) a on a.user_id = u.id

@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -19,9 +20,29 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ApiException.class)
-    public ResponseEntity<ApiError> handleApiException(ApiException exception) {
+    public ResponseEntity<ApiError> handleApiException(ApiException exception, HttpServletRequest request) {
+        if (exception.status().is5xxServerError()) {
+            log.error("Request failed: method={}, uri={}, status={}, code={}, cause={}",
+                request.getMethod(), request.getRequestURI(), exception.status().value(), exception.code(),
+                rootCauseMessage(exception), exception);
+        } else {
+            log.warn("Request rejected: method={}, uri={}, status={}, code={}, cause={}",
+                request.getMethod(), request.getRequestURI(), exception.status().value(), exception.code(),
+                rootCauseMessage(exception));
+        }
         return ResponseEntity.status(exception.status())
             .body(ApiError.of(exception.code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleUploadTooLarge(
+        MaxUploadSizeExceededException exception,
+        HttpServletRequest request
+    ) {
+        log.warn("Upload rejected because request is too large: method={}, uri={}, cause={}",
+            request.getMethod(), request.getRequestURI(), rootCauseMessage(exception));
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+            .body(ApiError.of("MEDIA_TOO_LARGE", "文件超过服务器允许的大小，请压缩后重新上传"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

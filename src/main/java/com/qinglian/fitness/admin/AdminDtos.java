@@ -56,16 +56,22 @@ public final class AdminDtos {
 
     public record UserRow(
         long id, String nickname, String phone, String avatarUrl, String status,
-        long workoutCount, long totalMinutes, long totalSeconds, Instant createdAt, Instant updatedAt,
+        long workoutCount, long totalMinutes, long totalSeconds, long todaySeconds, Instant createdAt, Instant updatedAt,
         com.qinglian.fitness.presence.PresenceMapper.Summary presence
     ) {
         public UserRow(long id, String nickname, String phone, String avatarUrl, String status,
+                       long workoutCount, long totalMinutes, long totalSeconds, long todaySeconds,
+                       Instant createdAt, Instant updatedAt) {
+            this(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, todaySeconds, createdAt, updatedAt, null);
+        }
+
+        public UserRow(long id, String nickname, String phone, String avatarUrl, String status,
                        long workoutCount, long totalMinutes, long totalSeconds, Instant createdAt, Instant updatedAt) {
-            this(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, createdAt, updatedAt, null);
+            this(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, 0, createdAt, updatedAt, null);
         }
 
         public UserRow withPresence(com.qinglian.fitness.presence.PresenceMapper.Summary summary) {
-            return new UserRow(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, createdAt, updatedAt, summary);
+            return new UserRow(id, nickname, phone, avatarUrl, status, workoutCount, totalMinutes, totalSeconds, todaySeconds, createdAt, updatedAt, summary);
         }
     }
 
