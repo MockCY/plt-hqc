@@ -291,7 +291,7 @@ CREATE TABLE IF NOT EXISTS user_plan_selections (
     user_id BIGINT UNSIGNED NOT NULL,
     plan_id BIGINT UNSIGNED NOT NULL,
     selected_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (user_id),
+    PRIMARY KEY (user_id, plan_id),
     KEY idx_user_plan_selections_plan (plan_id),
     CONSTRAINT fk_user_plan_selections_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_plan_selections_plan FOREIGN KEY (plan_id) REFERENCES training_plans(id)

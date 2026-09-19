@@ -10,7 +10,7 @@ import java.util.List;
 @Mapper
 public interface PlanMapper {
 
-    Long selectedPlanId(@Param("userId") long userId);
+    Long currentPlanId(@Param("userId") long userId);
 
     PlanHeader findPlanHeader(@Param("planId") Long planId);
 
@@ -22,8 +22,6 @@ public interface PlanMapper {
     List<PlanExerciseRow> findPlanDayExercises(@Param("planDayId") long planDayId);
 
     List<PlanSummary> catalog();
-
-    int updateSelection(@Param("userId") long userId, @Param("planId") long planId);
 
     int createSelection(@Param("userId") long userId, @Param("planId") long planId);
 

@@ -50,8 +50,7 @@ public class WebConfig implements WebMvcConfigurer {
                 "/api/exercises",
                 "/api/exercises/**",
                 "/api/plans/catalog",
-                "/api/campaigns/catalog",
-                "/api/plans/detail/*"
+                "/api/campaigns/catalog"
             );
         registry.addInterceptor(adminLoginInterceptor)
             .addPathPatterns("/api/admin/**")

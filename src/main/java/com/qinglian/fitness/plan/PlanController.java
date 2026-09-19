@@ -40,8 +40,8 @@ public class PlanController {
     }
 
     @GetMapping("/detail/{id}")
-    public PlanView detail(@PathVariable long id) {
-        return repository.detail(id)
+    public PlanView detail(HttpServletRequest request, @PathVariable long id) {
+        return repository.detail(CurrentUser.id(request), id)
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_NOT_FOUND", "训练计划不存在"));
     }
 
@@ -54,6 +54,6 @@ public class PlanController {
     @PutMapping("/{id}/days/{dayNumber}/complete")
     public PlanDayCompletion completeDay(HttpServletRequest request, @PathVariable long id, @PathVariable int dayNumber) {
         return repository.completeDay(CurrentUser.id(request), id, dayNumber)
-            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_DAY_NOT_FOUND", "当前计划中不存在该训练日"));
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "PLAN_DAY_NOT_FOUND", "该计划中不存在此训练日"));
     }
 }

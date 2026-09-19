@@ -68,8 +68,22 @@
         </constructor>
     </resultMap>
 
-    <select id="selectedPlanId" resultType="long">
-        select plan_id from user_plan_selections where user_id = #{userId}
+    <select id="currentPlanId" resultType="long">
+        select candidate.plan_id
+        from (
+            select visit.item_id plan_id, max(visit.visited_at) activity_at, 0 source_order
+            from training_detail_visits visit
+            join training_plans plan on plan.id = visit.item_id and plan.active = true
+            where visit.user_id = #{userId} and visit.detail_type = 'PLAN'
+            group by visit.item_id
+            union all
+            select selection.plan_id, selection.selected_at activity_at, 1 source_order
+            from user_plan_selections selection
+            join training_plans plan on plan.id = selection.plan_id and plan.active = true
+            where selection.user_id = #{userId}
+        ) candidate
+        order by candidate.activity_at desc, candidate.source_order, candidate.plan_id desc
+        limit 1
     </select>
 
     <select id="findPlanHeader" resultMap="planHeaderResultMap">
@@ -120,15 +134,10 @@
         order by p.sort_order, p.id
     </select>
 
-    <update id="updateSelection">
-        update user_plan_selections
-        set plan_id = #{planId}, selected_at = current_timestamp
-        where user_id = #{userId}
-    </update>
-
     <insert id="createSelection">
         insert into user_plan_selections(user_id, plan_id)
         values (#{userId}, #{planId})
+        on duplicate key update selected_at = current_timestamp(3)
     </insert>
 
     <select id="planDayExists" resultType="int">

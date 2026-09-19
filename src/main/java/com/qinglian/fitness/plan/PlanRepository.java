@@ -24,8 +24,11 @@ public class PlanRepository {
     }
 
     public Optional<PlanView> currentPlan(long userId) {
-        Long selectedPlanId = planMapper.selectedPlanId(userId);
-        PlanMapper.PlanHeader header = planMapper.findPlanHeader(selectedPlanId);
+        Long currentPlanId = planMapper.currentPlanId(userId);
+        if (currentPlanId == null) {
+            return Optional.empty();
+        }
+        PlanMapper.PlanHeader header = planMapper.findPlanHeader(currentPlanId);
         if (header == null) {
             return Optional.empty();
         }
@@ -38,10 +41,10 @@ public class PlanRepository {
         ));
     }
 
-    public Optional<PlanView> detail(long planId) {
+    public Optional<PlanView> detail(long userId, long planId) {
         PlanMapper.PlanHeader header = planMapper.findPlanHeader(planId);
         if (header == null) return Optional.empty();
-        List<PlanDayView> days = planDays(0L, header.id(), LocalDate.now());
+        List<PlanDayView> days = planDays(userId, header.id(), LocalDate.now());
         return Optional.of(new PlanView(
             header.id(), header.title(), header.weekNumber(), header.sessionsPerWeek(), header.cycleDays(), header.description(),
             header.subtitle(), header.coverImage(), header.detailImage(), header.homeImage(), header.level(), header.trainingScene(), header.sessionMinutes(),
@@ -59,17 +62,13 @@ public class PlanRepository {
         if (plan.isEmpty()) {
             return Optional.empty();
         }
-        int updated = planMapper.updateSelection(userId, planId);
-        if (updated == 0) {
-            planMapper.createSelection(userId, planId);
-        }
+        planMapper.createSelection(userId, planId);
         return Optional.of(new PlanSelection(planId, plan.get().title(), true));
     }
 
     @Transactional
     public Optional<PlanDayCompletion> completeDay(long userId, long planId, int dayNumber) {
-        Long selectedPlanId = planMapper.selectedPlanId(userId);
-        if (selectedPlanId == null || selectedPlanId != planId || planMapper.planDayExists(planId, dayNumber) == 0) {
+        if (planMapper.planDayExists(planId, dayNumber) == 0) {
             return Optional.empty();
         }
         planMapper.completeDay(userId, planId, dayNumber);
