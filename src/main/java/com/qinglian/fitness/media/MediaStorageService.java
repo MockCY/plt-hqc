@@ -230,8 +230,9 @@ public class MediaStorageService {
         while (normalizedRelativePath.startsWith("/")) {
             normalizedRelativePath = normalizedRelativePath.substring(1);
         }
+        boolean hiddenPath = normalizedRelativePath.startsWith(".") || normalizedRelativePath.contains("/.");
         Path target = root.resolve(normalizedRelativePath).normalize();
-        if (!target.startsWith(root) || !Files.isRegularFile(target)) {
+        if (hiddenPath || !target.startsWith(root) || !Files.isRegularFile(target)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "媒体文件不存在");
         }
         try {
