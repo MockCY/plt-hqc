@@ -255,6 +255,22 @@ public class AdminController {
         return repository.workouts(query, page, pageSize);
     }
 
+    @GetMapping("/custom-trainings")
+    public PageResult<CustomTrainingRow> customTrainings(
+        @RequestParam(required = false) String query,
+        @RequestParam(required = false) String goal,
+        @RequestParam(required = false) String level,
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return repository.customTrainings(query, goal, level, page, pageSize);
+    }
+
+    @GetMapping("/custom-trainings/{id}")
+    public CustomTrainingDetail customTraining(@PathVariable long id) {
+        return repository.customTraining(id);
+    }
+
     @GetMapping("/feedback")
     public PageResult<FeedbackRow> feedback(
         @RequestParam(required = false) String status,

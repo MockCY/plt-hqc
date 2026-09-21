@@ -5,6 +5,7 @@ import com.qinglian.fitness.catalog.ExerciseCategory;
 import com.qinglian.fitness.common.ApiException;
 import com.qinglian.fitness.mapper.AdminMapper;
 import com.qinglian.fitness.mapper.AdminMapper.CourseData;
+import com.qinglian.fitness.mapper.AdminMapper.CustomTrainingData;
 import com.qinglian.fitness.mapper.AdminMapper.InsertCommand;
 import com.qinglian.fitness.mapper.AdminMapper.PlanData;
 import com.qinglian.fitness.presence.PresenceService;
@@ -298,6 +299,31 @@ public class AdminRepository {
         String filter = normalizeQuery(query);
         return new PageResult<>(mapper.findWorkouts(filter, paging.pageSize(), paging.offset()),
             mapper.countWorkoutsFiltered(filter), paging.page(), paging.pageSize());
+    }
+
+    public PageResult<CustomTrainingRow> customTrainings(
+        String query, String goal, String level, int page, int pageSize
+    ) {
+        Paging paging = paging(page, pageSize);
+        String normalizedQuery = normalizeQuery(query);
+        String normalizedGoal = normalizeOption(goal);
+        String normalizedLevel = normalizeOption(level);
+        return new PageResult<>(
+            mapper.findCustomTrainings(normalizedQuery, normalizedGoal, normalizedLevel,
+                paging.pageSize(), paging.offset()),
+            mapper.countCustomTrainingsFiltered(normalizedQuery, normalizedGoal, normalizedLevel),
+            paging.page(), paging.pageSize()
+        );
+    }
+
+    public CustomTrainingDetail customTraining(long id) {
+        CustomTrainingData row = mapper.findCustomTraining(id);
+        if (row == null) throw notFound("CUSTOM_TRAINING_NOT_FOUND", "自定义训练不存在");
+        return new CustomTrainingDetail(
+            row.id(), row.userId(), row.userName(), row.userPhone(), row.title(), row.summary(),
+            row.goal(), row.level(), row.durationMinutes(), row.warmupMinutes(), row.restSeconds(),
+            row.createdAt(), mapper.findCustomTrainingExercises(id)
+        );
     }
 
     public PageResult<FeedbackRow> feedback(String status, int page, int pageSize) {
@@ -607,6 +633,11 @@ public class AdminRepository {
     private String normalizeFilter(String value) {
         return value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)
             ? null : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeOption(String value) {
+        return value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)
+            ? null : value.trim();
     }
 
     private String normalizeDeviceModel(String value) {

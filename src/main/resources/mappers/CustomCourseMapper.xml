@@ -10,21 +10,32 @@
             <arg column="title" javaType="java.lang.String"/>
             <arg column="duration_minutes" javaType="_int"/>
             <arg column="summary" javaType="java.lang.String"/>
+            <arg column="goal" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="warmup_minutes" javaType="_int"/>
+            <arg column="rest_seconds" javaType="_int"/>
             <arg column="created_at" javaType="java.time.Instant"/>
         </constructor>
     </resultMap>
 
     <select id="findAll" resultMap="customCourseResultMap">
-        select id, title, duration_minutes, summary, created_at
+        select id, title, duration_minutes, summary, goal, level, warmup_minutes, rest_seconds, created_at
         from custom_courses
         where user_id = #{userId}
         order by created_at desc, id desc
     </select>
 
     <select id="findById" resultMap="customCourseResultMap">
-        select id, title, duration_minutes, summary, created_at
+        select id, title, duration_minutes, summary, goal, level, warmup_minutes, rest_seconds, created_at
         from custom_courses
         where id = #{id} and user_id = #{userId}
+    </select>
+
+    <select id="findExerciseConfigs" resultType="com.qinglian.fitness.mapper.CustomCourseMapper$CustomCourseExerciseRow">
+        select exercise_id, set_count, repetitions
+        from custom_course_exercises
+        where custom_course_id = #{courseId}
+        order by sort_order
     </select>
 
     <select id="findExerciseIds" resultType="long">
@@ -35,13 +46,16 @@
     </select>
 
     <insert id="create" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        insert into custom_courses(user_id, title, duration_minutes, summary)
-        values (#{userId}, #{title}, #{durationMinutes}, #{summary})
+        insert into custom_courses(
+            user_id, title, duration_minutes, summary, goal, level, warmup_minutes, rest_seconds
+        ) values (
+            #{userId}, #{title}, #{durationMinutes}, #{summary}, #{goal}, #{level}, #{warmupMinutes}, #{restSeconds}
+        )
     </insert>
 
     <insert id="addExercise">
-        insert into custom_course_exercises(custom_course_id, exercise_id, sort_order)
-        values (#{courseId}, #{exerciseId}, #{sortOrder})
+        insert into custom_course_exercises(custom_course_id, exercise_id, sort_order, set_count, repetitions)
+        values (#{courseId}, #{exerciseId}, #{sortOrder}, #{setCount}, #{repetitions})
     </insert>
 
     <delete id="delete">

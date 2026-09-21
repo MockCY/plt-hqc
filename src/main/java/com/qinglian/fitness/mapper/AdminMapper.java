@@ -153,6 +153,24 @@ public interface AdminMapper {
         @Param("offset") int offset
     );
 
+    long countCustomTrainingsFiltered(
+        @Param("query") String query,
+        @Param("goal") String goal,
+        @Param("level") String level
+    );
+
+    List<CustomTrainingRow> findCustomTrainings(
+        @Param("query") String query,
+        @Param("goal") String goal,
+        @Param("level") String level,
+        @Param("limit") int limit,
+        @Param("offset") int offset
+    );
+
+    CustomTrainingData findCustomTraining(@Param("id") long id);
+
+    List<CustomTrainingExerciseRow> findCustomTrainingExercises(@Param("customTrainingId") long customTrainingId);
+
     long countFeedbackFiltered(@Param("status") String status);
 
     List<FeedbackRow> findFeedback(
@@ -234,6 +252,12 @@ public interface AdminMapper {
         String subtitle, String coverImage, String detailImage, String homeImage, String level, String trainingScene, Integer sessionMinutes,
         String benefitOne, String benefitTwo, String benefitThree,
         boolean active, int sortOrder, Instant createdAt, Instant updatedAt
+    ) {
+    }
+
+    record CustomTrainingData(
+        long id, long userId, String userName, String userPhone, String title, String summary,
+        String goal, String level, int durationMinutes, int warmupMinutes, int restSeconds, Instant createdAt
     ) {
     }
 

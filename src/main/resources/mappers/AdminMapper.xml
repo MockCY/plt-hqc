@@ -177,6 +177,50 @@
         </constructor>
     </resultMap>
 
+    <resultMap id="customTrainingRowMap" type="com.qinglian.fitness.admin.AdminDtos$CustomTrainingRow">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="user_name" javaType="java.lang.String"/>
+            <arg column="user_phone" javaType="java.lang.String"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="goal" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="exercise_count" javaType="_int"/>
+            <arg column="duration_minutes" javaType="_int"/>
+            <arg column="warmup_minutes" javaType="_int"/>
+            <arg column="rest_seconds" javaType="_int"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="customTrainingDataMap" type="com.qinglian.fitness.mapper.AdminMapper$CustomTrainingData">
+        <constructor>
+            <idArg column="id" javaType="_long"/>
+            <arg column="user_id" javaType="_long"/>
+            <arg column="user_name" javaType="java.lang.String"/>
+            <arg column="user_phone" javaType="java.lang.String"/>
+            <arg column="title" javaType="java.lang.String"/>
+            <arg column="summary" javaType="java.lang.String"/>
+            <arg column="goal" javaType="java.lang.String"/>
+            <arg column="level" javaType="java.lang.String"/>
+            <arg column="duration_minutes" javaType="_int"/>
+            <arg column="warmup_minutes" javaType="_int"/>
+            <arg column="rest_seconds" javaType="_int"/>
+            <arg column="created_at" javaType="java.time.Instant"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="customTrainingExerciseRowMap" type="com.qinglian.fitness.admin.AdminDtos$CustomTrainingExerciseRow">
+        <constructor>
+            <idArg column="exercise_id" javaType="_long"/>
+            <arg column="exercise_name" javaType="java.lang.String"/>
+            <arg column="sort_order" javaType="_int"/>
+            <arg column="set_count" javaType="_int"/>
+            <arg column="repetitions" javaType="_int"/>
+        </constructor>
+    </resultMap>
+
     <resultMap id="feedbackRowMap" type="com.qinglian.fitness.admin.AdminDtos$FeedbackRow">
         <constructor>
             <idArg column="id" javaType="_long"/>
@@ -659,6 +703,62 @@
         </where>
         order by w.completed_at desc
         limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countCustomTrainingsFiltered" resultType="long">
+        select count(*)
+        from custom_courses cc
+        join users u on u.id = cc.user_id
+        <where>
+            <if test="query != null">
+                (lower(cc.title) like concat('%', lower(#{query}), '%')
+                or lower(coalesce(u.nickname, '')) like concat('%', lower(#{query}), '%')
+                or coalesce(u.phone, '') like concat('%', #{query}, '%')
+                or cast(u.id as char) = #{query})
+            </if>
+            <if test="goal != null">and cc.goal = #{goal}</if>
+            <if test="level != null">and cc.level = #{level}</if>
+        </where>
+    </select>
+
+    <select id="findCustomTrainings" resultMap="customTrainingRowMap">
+        select cc.id, cc.user_id, coalesce(nullif(u.nickname, ''), concat('用户 ', u.id)) user_name,
+               u.phone user_phone, cc.title, cc.goal, cc.level, count(cce.exercise_id) exercise_count,
+               cc.duration_minutes, cc.warmup_minutes, cc.rest_seconds, cc.created_at
+        from custom_courses cc
+        join users u on u.id = cc.user_id
+        left join custom_course_exercises cce on cce.custom_course_id = cc.id
+        <where>
+            <if test="query != null">
+                (lower(cc.title) like concat('%', lower(#{query}), '%')
+                or lower(coalesce(u.nickname, '')) like concat('%', lower(#{query}), '%')
+                or coalesce(u.phone, '') like concat('%', #{query}, '%')
+                or cast(u.id as char) = #{query})
+            </if>
+            <if test="goal != null">and cc.goal = #{goal}</if>
+            <if test="level != null">and cc.level = #{level}</if>
+        </where>
+        group by cc.id, cc.user_id, u.nickname, u.phone, cc.title, cc.goal, cc.level,
+                 cc.duration_minutes, cc.warmup_minutes, cc.rest_seconds, cc.created_at
+        order by cc.created_at desc, cc.id desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="findCustomTraining" resultMap="customTrainingDataMap">
+        select cc.id, cc.user_id, coalesce(nullif(u.nickname, ''), concat('用户 ', u.id)) user_name,
+               u.phone user_phone, cc.title, cc.summary, cc.goal, cc.level,
+               cc.duration_minutes, cc.warmup_minutes, cc.rest_seconds, cc.created_at
+        from custom_courses cc
+        join users u on u.id = cc.user_id
+        where cc.id = #{id}
+    </select>
+
+    <select id="findCustomTrainingExercises" resultMap="customTrainingExerciseRowMap">
+        select cce.exercise_id, e.name exercise_name, cce.sort_order, cce.set_count, cce.repetitions
+        from custom_course_exercises cce
+        join exercises e on e.id = cce.exercise_id
+        where cce.custom_course_id = #{customTrainingId}
+        order by cce.sort_order, cce.exercise_id
     </select>
 
     <select id="countFeedbackFiltered" resultType="long">

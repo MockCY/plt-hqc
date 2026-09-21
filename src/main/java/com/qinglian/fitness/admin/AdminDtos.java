@@ -283,6 +283,24 @@ public final class AdminDtos {
     ) {
     }
 
+    public record CustomTrainingRow(
+        long id, long userId, String userName, String userPhone, String title, String goal, String level,
+        int exerciseCount, int durationMinutes, int warmupMinutes, int restSeconds, Instant createdAt
+    ) {
+    }
+
+    public record CustomTrainingExerciseRow(
+        long exerciseId, String exerciseName, int sortOrder, int setCount, int repetitions
+    ) {
+    }
+
+    public record CustomTrainingDetail(
+        long id, long userId, String userName, String userPhone, String title, String summary,
+        String goal, String level, int durationMinutes, int warmupMinutes, int restSeconds,
+        Instant createdAt, List<CustomTrainingExerciseRow> exercises
+    ) {
+    }
+
     public record FeedbackRow(
         long id, long userId, String userName, String category, String content,
         String contact, String status, Instant createdAt
