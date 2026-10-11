@@ -8,6 +8,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -40,12 +41,22 @@ public class FirmwareService {
             if (!release.model().equals(model)) throw invalid();
             return Map.of("available", compareVersions(release.version(), currentVersion) > 0,
                     "published", true, "release", release);
+        } catch (NoSuchFileException e) {
+            // An administrator may withdraw the latest pointer while a device is checking it.
+            return Map.of("available", false, "published", false);
         } catch (IOException e) { throw unavailable(e); }
     }
 
     public Release release(String releaseId) {
         validateId(releaseId);
         Path directory = root.resolve("releases").resolve(releaseId);
+        return readStoredRelease(releaseId, directory);
+    }
+
+    Path storageRoot() { return root; }
+
+    Release readStoredRelease(String releaseId, Path directory) {
+        validateId(releaseId);
         Path manifest = directory.resolve("manifest.json");
         if (!Files.isRegularFile(manifest)) throw new ApiException(HttpStatus.NOT_FOUND, "FIRMWARE_NOT_FOUND", "固件版本尚未发布");
         try {

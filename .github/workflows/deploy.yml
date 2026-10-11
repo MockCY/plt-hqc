@@ -102,6 +102,14 @@ jobs:
 
             docker load -i arvello-backend.tar
 
+            # Prepare the mounted firmware store for the non-root application user.
+            docker compose --env-file .env run --rm --no-deps --user 0 --entrypoint /bin/sh arvello-backend -c '
+              set -e
+              mkdir -p /data/arvello/firmware/releases /data/arvello/firmware/latest /data/arvello/firmware/drafts
+              chown 10001:0 /data/arvello/firmware /data/arvello/firmware/releases /data/arvello/firmware/latest /data/arvello/firmware/drafts
+              chmod 755 /data/arvello/firmware /data/arvello/firmware/releases /data/arvello/firmware/latest /data/arvello/firmware/drafts
+            '
+
             docker rm -f plt-hgc 2>/dev/null || true
             docker compose --env-file .env up -d --no-build --remove-orphans arvello-backend
             python3 logs/init-auth.py
