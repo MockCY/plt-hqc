@@ -12,6 +12,7 @@ services:
       SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080
       MEDIA_ROOT: /data/arvello/media
+      FIRMWARE_ROOT: /data/arvello/firmware
       MEDIA_VIDEO_TRANSCODING_ENABLED: "true"
       MEDIA_VIDEO_TRANSCODING_TIMEOUT_SECONDS: 900
       LOGGING_FILE_NAME: /app/logs/application.json
@@ -23,6 +24,7 @@ services:
       LOGGING_LOGBACK_ROLLINGPOLICY_CLEAN_HISTORY_ON_START: "true"
     volumes:
       - ${MEDIA_HOST_PATH:-./data/media}:/data/arvello/media
+      - ${FIRMWARE_HOST_PATH:-./data/firmware}:/data/arvello/firmware:ro
       - backend-logs:/app/logs
     logging:
       driver: json-file

@@ -31,6 +31,8 @@ wechat:
   mini-program-code-env-version: ${WECHAT_MINI_PROGRAM_CODE_ENV_VERSION:release}
 
 app:
+  firmware:
+    root: ${FIRMWARE_ROOT:${user.dir}/data/firmware}
   session-ttl: ${SESSION_TTL:30d}
   session-touch-interval: 5m
   admin:

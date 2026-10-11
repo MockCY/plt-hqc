@@ -41,6 +41,7 @@ public class WebConfig implements WebMvcConfigurer {
                 "/api/v1/sensor/readings",
                 "/api/v1/sensor/claim-confirm",
                 "/api/v1/device/register",
+                "/api/v1/firmware/**",
                 "/api/auth/login",
                 "/api/auth/wechat-phone",
                 "/api/media/files/**",
