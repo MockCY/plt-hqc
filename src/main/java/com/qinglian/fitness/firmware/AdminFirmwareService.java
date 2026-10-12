@@ -44,6 +44,7 @@ public class AdminFirmwareService {
                                  long size, String sha256, String notes, String createdAt, String status) {}
     private record UploadInfo(String createdAt) {}
     private record StoredRelease(FirmwareService.Release release, Path directory, boolean draft) {}
+    private record FirmwareIdentity(String model, String version) {}
 
     public synchronized List<ManagedRelease> list() {
         try {
@@ -67,23 +68,23 @@ public class AdminFirmwareService {
     }
 
     public synchronized ManagedRelease upload(MultipartFile file, String model, String version, String notes) {
-        validateModel(model);
+        if (model != null && !model.isBlank()) validateModel(model);
         validateVersion(version);
         if (notes == null) notes = "";
         if (notes.length() > 500) throw badRequest("INVALID_FIRMWARE_NOTES", "更新说明不能超过 500 字");
         if (file == null || file.isEmpty()) throw badRequest("FIRMWARE_FILE_REQUIRED", "请选择应用固件 .ino.bin 文件");
         if (file.getSize() < 256 || file.getSize() > MAX_IMAGE_SIZE) throw wrongImage();
-        String id = model + "-" + version.replace('.', '_');
         Path temporary = null;
         try {
-            Path drafts = createArea("drafts");
-            Path target = drafts.resolve(id);
-            if (exists(target) || exists(area("releases").resolve(id))) throw duplicate();
             byte[] bytes;
             try (var input = file.getInputStream()) {
                 bytes = input.readNBytes(MAX_IMAGE_SIZE + 1);
             }
-            validateImage(bytes, model, version);
+            model = validateImage(bytes, model, version);
+            String id = model + "-" + version.replace('.', '_');
+            Path drafts = createArea("drafts");
+            Path target = drafts.resolve(id);
+            if (exists(target) || exists(area("releases").resolve(id))) throw duplicate();
             var release = new FirmwareService.Release(id, model, "esp32s3", version, bytes.length,
                     HexFormat.of().formatHex(sha256(bytes)), notes);
             temporary = Files.createTempDirectory(drafts, ".tmp-");
@@ -218,14 +219,13 @@ public class AdminFirmwareService {
     private static boolean exists(Path path) { return Files.exists(path, LinkOption.NOFOLLOW_LINKS); }
     private static void rejectSymlink(Path path) { if (Files.isSymbolicLink(path)) throw storageInvalid(); }
 
-    static void validateImage(byte[] bytes, String model, String version) {
+    static String validateImage(byte[] bytes, String model, String version) {
         if (bytes.length < 256 || bytes.length > MAX_IMAGE_SIZE || (bytes[0] & 0xff) != 0xe9
                 || uint16(bytes, 12) != 9 || uint32(bytes, 32) != 0xabcd5432L) throw wrongImage();
         int segments = bytes[1] & 0xff;
         if (segments < 1 || segments > 16 || (bytes[23] != 0 && bytes[23] != 1)) throw wrongImage();
-        byte[] identity = ("ARVELLO_OTA|" + model + "|" + version + "|\0").getBytes(StandardCharsets.UTF_8);
         int offset = 24, checksum = 0xef;
-        boolean identityFound = false;
+        List<int[]> ranges = new ArrayList<>();
         for (int index = 0; index < segments; index++) {
             if (offset + 8 > bytes.length) throw wrongImage();
             long length = uint32(bytes, offset + 4);
@@ -233,7 +233,7 @@ public class AdminFirmwareService {
             if ((length & 3) != 0 || length > bytes.length - start || (index == 0 && length < 256)) throw wrongImage();
             int end = start + (int) length;
             for (int position = start; position < end; position++) checksum ^= bytes[position] & 0xff;
-            if (contains(bytes, start, end, identity)) identityFound = true;
+            if (uint32(bytes, offset) != 0) ranges.add(new int[]{start, end});
             offset = end;
         }
         int checksumOffset = ((offset + 16) / 16) * 16 - 1;
@@ -242,15 +242,36 @@ public class AdminFirmwareService {
         if (totalLength != bytes.length || (bytes[checksumOffset] & 0xff) != checksum) throw wrongImage();
         if (bytes[23] == 1 && !MessageDigest.isEqual(sha256(Arrays.copyOf(bytes, imageLength)),
                 Arrays.copyOfRange(bytes, imageLength, totalLength))) throw wrongImage();
-        if (!identityFound) throw badRequest("FIRMWARE_IDENTITY_MISMATCH", "固件内的型号或版本与填写内容不一致，请修改源码版本并重新编译");
+        FirmwareIdentity identity = identify(bytes, ranges);
+        if (!identity.version().equals(version)) throw badRequest("FIRMWARE_IDENTITY_MISMATCH", "填写的版本号与固件内版本不一致，请修改版本号或重新编译固件");
+        if (model != null && !model.isBlank() && !identity.model().equals(model)) {
+            throw badRequest("FIRMWARE_IDENTITY_MISMATCH", "固件内的型号与填写内容不一致，请选择对应设备的固件");
+        }
+        return identity.model();
     }
 
-    private static boolean contains(byte[] bytes, int start, int end, byte[] expected) {
-        outer: for (int offset = start; offset <= end - expected.length; offset++) {
-            for (int index = 0; index < expected.length; index++) if (bytes[offset + index] != expected[index]) continue outer;
-            return true;
+    private static FirmwareIdentity identify(byte[] bytes, List<int[]> ranges) {
+        byte[] prefix = "ARVELLO_OTA|".getBytes(StandardCharsets.US_ASCII);
+        FirmwareIdentity identity = null;
+        for (int[] range : ranges) {
+            outer: for (int offset = range[0]; offset <= range[1] - prefix.length; offset++) {
+                for (int index = 0; index < prefix.length; index++) if (bytes[offset + index] != prefix[index]) continue outer;
+                // A complete marker is at most 75 bytes and must end inside the same application segment.
+                int end = offset + prefix.length, limit = Math.min(range[1], offset + 75);
+                while (end < limit && bytes[end] != 0) end++;
+                if (end == limit) continue;
+                String[] fields = new String(bytes, offset, end - offset, StandardCharsets.US_ASCII).split("\\|", -1);
+                if (fields.length != 4 || !fields[3].isEmpty() || !MODEL.matcher(fields[1]).matches()
+                        || !VERSION.matcher(fields[2]).matches()) continue;
+                var found = new FirmwareIdentity(fields[1], fields[2]);
+                if (identity != null && !identity.equals(found)) {
+                    throw badRequest("FIRMWARE_IDENTITY_CONFLICT", "固件包含多个不同的型号或版本标记，请检查源码并重新编译");
+                }
+                identity = found;
+            }
         }
-        return false;
+        if (identity == null) throw badRequest("FIRMWARE_IDENTITY_NOT_FOUND", "未识别到固件的型号和版本标记，请上传支持 OTA 的应用固件");
+        return identity;
     }
     private static int uint16(byte[] bytes, int offset) { return (bytes[offset] & 0xff) | ((bytes[offset + 1] & 0xff) << 8); }
     private static long uint32(byte[] bytes, int offset) {
