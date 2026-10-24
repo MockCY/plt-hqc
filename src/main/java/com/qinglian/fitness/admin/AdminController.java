@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
+/** 提供管理后台业务接口，统一复用管理员会话鉴权。 */
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
@@ -32,14 +33,17 @@ public class AdminController {
     private final MediaStorageService mediaStorage;
     private final DeviceQrCodeService deviceQrCodeService;
     private final DeviceExcelExportService deviceExcelExportService;
+    private final ExerciseSearchService exerciseSearchService;
 
     public AdminController(AdminAuthService authService, AdminRepository repository, MediaStorageService mediaStorage,
-                           DeviceQrCodeService deviceQrCodeService, DeviceExcelExportService deviceExcelExportService) {
+                           DeviceQrCodeService deviceQrCodeService, DeviceExcelExportService deviceExcelExportService,
+                           ExerciseSearchService exerciseSearchService) {
         this.authService = authService;
         this.repository = repository;
         this.mediaStorage = mediaStorage;
         this.deviceQrCodeService = deviceQrCodeService;
         this.deviceExcelExportService = deviceExcelExportService;
+        this.exerciseSearchService = exerciseSearchService;
     }
 
     @PostMapping("/auth/login")
@@ -142,6 +146,22 @@ public class AdminController {
         @RequestParam(defaultValue = "50") int pageSize
     ) {
         return repository.exercises(query, status, bodyPart, page, pageSize);
+    }
+
+    /**
+     * 管理员在数据库中按名称、类型或难度分页搜索动作，供课程和计划编辑器使用。
+     * query 去除首尾空白后最多 80 个字符，字母忽略大小写；status 默认 PUBLISHED，ALL 可回显其他状态。
+     * page 从 1 开始，pageSize 为 1 至 100；ids 最多 100 个正整数，显式空值只返回空列表。
+     */
+    @GetMapping("/exercises/search")
+    public PageResult<ExerciseRow> searchExercises(
+        @RequestParam(required = false) String query,
+        @RequestParam(defaultValue = "PUBLISHED") String status,
+        @RequestParam(defaultValue = "1") String page,
+        @RequestParam(defaultValue = "20") String pageSize,
+        @RequestParam(required = false) String ids
+    ) {
+        return exerciseSearchService.search(query, status, page, pageSize, ids);
     }
 
     @GetMapping("/exercises/{id}")

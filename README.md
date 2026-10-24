@@ -277,6 +277,46 @@ BCrypt 摘要保存在数据库中。
 所有设备标签共用同一个小程序码，区别仅在标签下方的唯一 SN。服务进程会缓存小程序码，重启后的首次标签下载会重新调用微信接口。
 生产环境保持 `WECHAT_MINI_PROGRAM_CODE_ENV_VERSION=release`；体验版联调时可临时设为 `trial`，并确保目标页面已存在于对应版本中。
 
+## 后台动作库数据库搜索
+
+`GET /api/admin/exercises/search` 由管理员 Bearer 会话保护，直接在 MySQL 中筛选后分页，
+供计划与课程编辑器使用。旧 `/api/admin/exercises` 的参数和行为保持兼容。
+
+| 参数 | 规则 |
+| --- | --- |
+| `query` | 可省略；去除首尾空白后最多 80 个字符，按动作名称、类型 `bodyPart` 或难度 `level` 包含查询，英文字母不区分大小写 |
+| `status` | 默认 `PUBLISHED`；也支持 `ALL`、`DRAFT`、`ARCHIVED`，`ALL` 不限制状态 |
+| `page` | 默认 1，必须为正整数 |
+| `pageSize` | 默认 20，范围 1 至 100 |
+| `ids` | 可省略；逗号分隔的最多 100 个正整数 ID，用于回显已选动作；显式 `ids=` 只返回空列表，不查询全部动作 |
+
+返回沿用 `{ "items": [...], "total": 0, "page": 1, "pageSize": 20 }` 分页结构，
+`items` 中的字段与现有后台动作响应相同。空搜索词查询指定状态下的动作；
+`query`、`status`、`ids` 同时提供时取交集。选中动作回显可使用 `status=ALL&ids=1,2&pageSize=100`，
+避免草稿或已下架动作的名称丢失。排序依次为 `sort_order` 升序、更新时间降序、ID 降序。
+列表与总数使用相同筛选条件，在显式 `REPEATABLE_READ` 的短只读事务中查询，不全量读取后再内存分页。
+事务与单条搜索 SQL 均设置 10 秒超时。类型搜索复用动作类型历史别名映射，
+例如数据库尚存「肩背」时，搜索展示名称「肩背体态」或「体态」也能命中。
+
+搜索词中的 `%`、`_`、`!` 均按字面匹配，不作为通配符；请求 URL 中的 `%` 应编码为 `%25`。
+参数非法时返回 `400` 与现有 `VALIDATION_ERROR` 错误结构，缺少或过期的管理员令牌返回 `401`。
+接口不依赖 Elasticsearch，无需数据库迁移。可复现请求见 [examples/exercise-search.http](examples/exercise-search.http)。
+
+搜索接口回归测试使用现有测试依赖，不加载应用数据源配置：
+
+```powershell
+.\mvnw.cmd -Dtest=ExerciseSearchServiceTest test
+```
+
+`ExerciseSearchMapperMysqlTest` 另在真实 MySQL 上验证大小写、历史类型、转义、状态与 ID 交集、
+超过 100 条动作的稳定分页。仅在显式提供下列参数时运行；未提供时会跳过这 5 项集成测试。
+该测试只接受 `127.0.0.1` 上独立实例的固定库名 `exercise_search_test`，使用临时实例中的无密码
+`root` 测试账户并重建该库的 `exercises` 表。先在独立实例创建此专用库，测试完成后关闭临时实例。
+
+```powershell
+.\mvnw.cmd '-Dexercise.search.mysql.url=jdbc:mysql://127.0.0.1:33307/exercise_search_test' '-Dtest=ExerciseSearchServiceTest,ExerciseSearchMapperMysqlTest' test
+```
+
 ## 固件版本管理
 
 后台「固件版本管理」支持上传编译好的 ESP32-S3 应用 `.bin`、查看版本、下载文件、发布版本和停止提供更新，无需登录服务器手动复制固件。

@@ -499,6 +499,51 @@
         limit #{limit} offset #{offset}
     </select>
 
+    <!-- 搜索总数与列表共用过滤条件，! 为转义符，用户输入中的通配符只按字面匹配。 -->
+    <sql id="exerciseSearchFilter">
+        <where>
+            <if test="pattern != null">
+                (lower(name) like lower(#{pattern}) escape '!'
+                 or lower(body_part) like lower(#{pattern}) escape '!'
+                 or lower(level) like lower(#{pattern}) escape '!'
+                 <!-- 与响应中的类型规范化一致，避免搜索新名称时漏掉迁移前的历史类型值。 -->
+                 <if test="categoryAliases != null and categoryAliases.size() > 0">
+                     or trim(body_part) in
+                     <foreach collection="categoryAliases" item="alias" open="(" separator="," close=")">#{alias}</foreach>
+                 </if>
+                )
+            </if>
+            <if test="status != null">and status = #{status}</if>
+            <if test="ids != null">
+                <choose>
+                    <when test="ids.size() > 0">
+                        and id in
+                        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+                    </when>
+                    <otherwise>and 1 = 0</otherwise>
+                </choose>
+            </if>
+        </where>
+    </sql>
+
+    <!-- 包含查询可能扫描动作库，SQL 超时单位为秒，与搜索短事务共同限制为 10 秒。 -->
+    <select id="countExerciseSearch" resultType="long" timeout="10">
+        select count(*) from exercises
+        <include refid="exerciseSearchFilter"/>
+    </select>
+
+    <select id="searchExercises" resultMap="exerciseRowMap" timeout="10">
+        select id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
+               cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url,
+               focus_image_url, focus_parts, spring_sets, spring_counts, key_points, common_mistakes,
+               instruction_audio_url, status, sort_order, created_at, updated_at
+        from exercises
+        <include refid="exerciseSearchFilter"/>
+        <!-- ID 作为最后排序键，保证更新时间和排序值相同的动作不会在分页边界重复或遗漏。 -->
+        order by sort_order, updated_at desc, id desc
+        limit #{limit} offset #{offset}
+    </select>
+
     <sql id="exerciseCategoryFilter">
         <if test="bodyParts != null">
             and trim(body_part) in

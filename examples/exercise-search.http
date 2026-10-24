@@ -1,0 +1,29 @@
+@baseUrl = http://127.0.0.1:8080
+@adminToken = REPLACE_WITH_ADMIN_TOKEN
+
+### 已发布动作：名称、类型和难度包含查询，w 与 W 等价
+GET {{baseUrl}}/api/admin/exercises/search?query=跪姿w&page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+### 读取下一页，不依赖前端加载全部动作
+GET {{baseUrl}}/api/admin/exercises/search?query=肩背&page=2&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+### 按已选动作 ID 批量回显；ALL 包含草稿与下架，最多 100 个 ID
+GET {{baseUrl}}/api/admin/exercises/search?ids=1,2,3&status=ALL&pageSize=100
+Authorization: Bearer {{adminToken}}
+
+### 显式空 ID 集只返回空列表
+GET {{baseUrl}}/api/admin/exercises/search?ids=&status=ALL
+Authorization: Bearer {{adminToken}}
+
+### 搜索字面量 %，不会把 % 当作匹配任意动作的通配符
+GET {{baseUrl}}/api/admin/exercises/search?query=%25
+Authorization: Bearer {{adminToken}}
+
+### 参数越界返回 400 和 VALIDATION_ERROR
+GET {{baseUrl}}/api/admin/exercises/search?pageSize=101
+Authorization: Bearer {{adminToken}}
+
+### 缺少管理员令牌返回 401
+GET {{baseUrl}}/api/admin/exercises/search?query=跪姿w

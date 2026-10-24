@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 import java.util.Arrays;
 import java.util.List;
 
-/** Training categories stored in the existing body_part column. */
+/** 维护动作类型的展示名称及数据库历史别名，保证迁移前后查询与展示一致。 */
 public enum ExerciseCategory {
     CORE("核心训练", "核心"),
     GLUTES_LEGS("臀腿塑形", "臀腿", "下肢"),
@@ -46,6 +46,17 @@ public enum ExerciseCategory {
             .filter(category -> category.storedValues.contains(trimmed))
             .map(category -> category.storedValues)
             .findFirst().orElseThrow(ExerciseCategory::invalidCategory);
+    }
+
+    /** 搜索展示类型名称时展开历史存储别名，部分关键词同样保持迁移前后的包含匹配语义。 */
+    public static List<String> searchValues(String query) {
+        if (query == null || query.isBlank()) return List.of();
+        String trimmed = query.trim();
+        return Arrays.stream(values())
+            .filter(category -> category.label.contains(trimmed))
+            .flatMap(category -> category.storedValues.stream())
+            .distinct()
+            .toList();
     }
 
     public static void validateWrite(String value) {

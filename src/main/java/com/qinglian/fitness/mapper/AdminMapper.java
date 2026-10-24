@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+/** 管理后台业务的关系数据库访问入口，查询与写入由同名 MyBatis XML 定义。 */
 @Mapper
 public interface AdminMapper {
 
@@ -96,6 +97,20 @@ public interface AdminMapper {
     );
 
     ExerciseRow findExercise(@Param("id") long id);
+
+    /** 统计名称、类型或难度匹配的动作；ids 为 null 时不限 ID，空集合不得查全库。 */
+    long countExerciseSearch(@Param("pattern") String pattern, @Param("status") String status,
+                             @Param("ids") List<Long> ids, @Param("categoryAliases") List<String> categoryAliases);
+
+    /** 按稳定顺序读取动作搜索页，offset 使用 long 防止大页码溢出。 */
+    List<ExerciseRow> searchExercises(
+        @Param("pattern") String pattern,
+        @Param("status") String status,
+        @Param("ids") List<Long> ids,
+        @Param("categoryAliases") List<String> categoryAliases,
+        @Param("limit") int limit,
+        @Param("offset") long offset
+    );
 
     int insertExercise(InsertCommand<ExerciseRequest> command);
 
