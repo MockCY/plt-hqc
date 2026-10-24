@@ -302,21 +302,6 @@ BCrypt 摘要保存在数据库中。
 参数非法时返回 `400` 与现有 `VALIDATION_ERROR` 错误结构，缺少或过期的管理员令牌返回 `401`。
 接口不依赖 Elasticsearch，无需数据库迁移。可复现请求见 [examples/exercise-search.http](examples/exercise-search.http)。
 
-搜索接口回归测试使用现有测试依赖，不加载应用数据源配置：
-
-```powershell
-.\mvnw.cmd -Dtest=ExerciseSearchServiceTest test
-```
-
-`ExerciseSearchMapperMysqlTest` 另在真实 MySQL 上验证大小写、历史类型、转义、状态与 ID 交集、
-超过 100 条动作的稳定分页。仅在显式提供下列参数时运行；未提供时会跳过这 5 项集成测试。
-该测试只接受 `127.0.0.1` 上独立实例的固定库名 `exercise_search_test`，使用临时实例中的无密码
-`root` 测试账户并重建该库的 `exercises` 表。先在独立实例创建此专用库，测试完成后关闭临时实例。
-
-```powershell
-.\mvnw.cmd '-Dexercise.search.mysql.url=jdbc:mysql://127.0.0.1:33307/exercise_search_test' '-Dtest=ExerciseSearchServiceTest,ExerciseSearchMapperMysqlTest' test
-```
-
 ## 固件版本管理
 
 后台「固件版本管理」支持上传编译好的 ESP32-S3 应用 `.bin`、查看版本、下载文件、发布版本和停止提供更新，无需登录服务器手动复制固件。
