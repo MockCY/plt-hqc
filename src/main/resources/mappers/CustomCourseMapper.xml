@@ -18,10 +18,16 @@
         </constructor>
     </resultMap>
 
-    <select id="findAll" resultMap="customCourseResultMap">
+    <!-- 搜索必须与用户归属取交集，不能让关键词分支绕过 user_id；超时单位为秒。 -->
+    <select id="findAll" resultMap="customCourseResultMap" timeout="10">
         select id, title, duration_minutes, summary, goal, level, warmup_minutes, rest_seconds, created_at
         from custom_courses
         where user_id = #{userId}
+        <if test="pattern != null">
+            and (lower(title) like lower(#{pattern}) escape '!'
+                 or lower(summary) like lower(#{pattern}) escape '!'
+                 or concat(duration_minutes, '分钟') like #{pattern} escape '!')
+        </if>
         order by created_at desc, id desc
     </select>
 

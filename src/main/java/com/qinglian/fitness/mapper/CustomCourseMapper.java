@@ -6,10 +6,12 @@ import org.apache.ibatis.annotations.Param;
 import java.time.Instant;
 import java.util.List;
 
+/** 自定义训练数据库访问入口，列表搜索始终包含用户归属条件。 */
 @Mapper
 public interface CustomCourseMapper {
 
-    List<CustomCourseRow> findAll(@Param("userId") long userId);
+    /** 按当前用户与可空的已转义 LIKE 参数查询训练，空关键词保留原有列表行为。 */
+    List<CustomCourseRow> findAll(@Param("userId") long userId, @Param("pattern") String pattern);
 
     CustomCourseRow findById(@Param("id") long id, @Param("userId") long userId);
 

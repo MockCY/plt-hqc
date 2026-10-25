@@ -89,7 +89,8 @@
         </constructor>
     </resultMap>
 
-    <select id="findCourses" resultMap="courseResultMap">
+    <!-- 搜索只读取已发布内容，LIKE 使用绑定参数与字面转义；超时单位为秒。 -->
+    <select id="findCourses" resultMap="courseResultMap" timeout="10">
         select c.id, c.title, c.type, c.duration_minutes, c.level, c.equipment,
                c.summary, c.cover_image, c.video_url, c.video_cover_image, c.video_duration_seconds, c.view_count,
                count(ce.exercise_id) exercise_count
@@ -99,17 +100,21 @@
         <if test="type != null">
             and c.type = #{type}
         </if>
-        <if test="query != null">
-            and (c.title like concat('%', #{query}, '%')
-                 or c.summary like concat('%', #{query}, '%')
-                 or c.type like concat('%', #{query}, '%'))
+        <if test="pattern != null">
+            and (lower(c.title) like lower(#{pattern}) escape '!'
+                 or lower(c.summary) like lower(#{pattern}) escape '!'
+                 or lower(c.type) like lower(#{pattern}) escape '!'
+                 or lower(c.level) like lower(#{pattern}) escape '!'
+                 or lower(c.equipment) like lower(#{pattern}) escape '!'
+                 or concat(c.duration_minutes, '分钟') like #{pattern} escape '!')
         </if>
         group by c.id, c.title, c.type, c.duration_minutes, c.level, c.equipment,
                  c.summary, c.cover_image, c.video_url, c.video_cover_image, c.video_duration_seconds, c.view_count, c.sort_order
         order by c.sort_order, c.id
     </select>
 
-    <select id="findExercises" resultMap="exerciseResultMap">
+    <!-- 与动作库展示字段使用相同口径，用户输入的 %、_、! 不作为通配符。 -->
+    <select id="findExercises" resultMap="exerciseResultMap" timeout="10">
         select id, name, body_part, level, equipment, suggested_sets, target, cue, safety_tip,
                cover_image, video_url, video_cover_image, video_duration_seconds, background_music_url,
                focus_image_url, focus_parts, spring_sets, spring_counts, key_points, common_mistakes, instruction_audio_url
@@ -121,9 +126,18 @@
                 #{bodyPart}
             </foreach>
         </if>
-        <if test="query != null">
-            and (name like concat('%', #{query}, '%')
-                 or body_part like concat('%', #{query}, '%'))
+        <if test="pattern != null">
+            and (lower(name) like lower(#{pattern}) escape '!'
+                 or lower(body_part) like lower(#{pattern}) escape '!'
+                 or lower(level) like lower(#{pattern}) escape '!'
+                 <!-- 小程序将历史难度“拉伸”展示为“挑战”，搜索展示名称时保持同一口径。 -->
+                 or (level = '拉伸' and '挑战' like #{pattern} escape '!')
+                 or lower(target) like lower(#{pattern}) escape '!'
+                 <if test="categoryAliases != null and categoryAliases.size() > 0">
+                     or trim(body_part) in
+                     <foreach collection="categoryAliases" item="alias" open="(" separator="," close=")">#{alias}</foreach>
+                 </if>
+                )
         </if>
         order by sort_order, id
     </select>

@@ -12,11 +12,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/** 管理当前用户专属的自定义训练，查询与修改均以登录身份限制归属。 */
 @RestController
 @RequestMapping("/api/custom-courses")
 public class CustomCourseController {
@@ -27,9 +29,10 @@ public class CustomCourseController {
         this.repository = repository;
     }
 
+    /** 按可选关键词搜索自己的训练名称、介绍或分钟数，省略关键词保留原有完整列表。 */
     @GetMapping
-    public List<CustomCourseView> all(HttpServletRequest request) {
-        return repository.findAll(CurrentUser.id(request));
+    public List<CustomCourseView> all(HttpServletRequest request, @RequestParam(required = false) String query) {
+        return repository.findAll(CurrentUser.id(request), query);
     }
 
     @PostMapping

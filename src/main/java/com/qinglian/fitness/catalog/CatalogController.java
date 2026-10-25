@@ -19,6 +19,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
+/** 提供小程序公开课程与动作查询，列表搜索只返回已发布内容并保留数组响应。 */
 @RestController
 @RequestMapping("/api")
 public class CatalogController {
@@ -31,6 +32,7 @@ public class CatalogController {
         this.sessionService = sessionService;
     }
 
+    /** 按课程类型与可选关键词查询已发布课程；关键词去空白后最多 80 个字符。 */
     @GetMapping("/courses")
     public List<CourseView> courses(
         @RequestParam(required = false) String type,
@@ -39,6 +41,7 @@ public class CatalogController {
         return repository.findCourses(type, query);
     }
 
+    /** 按动作类型与可选关键词查询已发布动作，兼容历史类型名称与字面通配符。 */
     @GetMapping("/exercises")
     public List<ExerciseView> exercises(
         @RequestParam(required = false) String bodyPart,

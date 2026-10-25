@@ -4,6 +4,7 @@ import com.qinglian.fitness.customcourse.CustomCourseDtos.CreateCustomCourseRequ
 import com.qinglian.fitness.customcourse.CustomCourseDtos.CustomExerciseRequest;
 import com.qinglian.fitness.customcourse.CustomCourseDtos.CustomExerciseView;
 import com.qinglian.fitness.customcourse.CustomCourseDtos.CustomCourseView;
+import com.qinglian.fitness.common.LiteralSearch;
 import com.qinglian.fitness.mapper.CustomCourseMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/** 组织自定义训练的归属查询和保存，内容筛选由数据库完成。 */
 @Repository
 public class CustomCourseRepository {
 
@@ -22,8 +24,9 @@ public class CustomCourseRepository {
         this.customCourseMapper = customCourseMapper;
     }
 
-    public List<CustomCourseView> findAll(long userId) {
-        return customCourseMapper.findAll(userId).stream().map(this::view).toList();
+    /** 搜索当前用户自己的训练，关键词与公开内容复用同一长度和字面匹配规则。 */
+    public List<CustomCourseView> findAll(long userId, String query) {
+        return customCourseMapper.findAll(userId, LiteralSearch.containsPattern(query)).stream().map(this::view).toList();
     }
 
     @Transactional

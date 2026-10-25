@@ -3,6 +3,7 @@ package com.qinglian.fitness.admin;
 import com.qinglian.fitness.admin.AdminDtos.ExerciseRow;
 import com.qinglian.fitness.admin.AdminDtos.PageResult;
 import com.qinglian.fitness.common.ApiException;
+import com.qinglian.fitness.common.LiteralSearch;
 import com.qinglian.fitness.catalog.ExerciseCategory;
 import com.qinglian.fitness.mapper.AdminMapper;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,6 @@ import java.util.Set;
 @Service
 public class ExerciseSearchService {
 
-    private static final int MAX_QUERY_LENGTH = 80;
     private static final int MAX_PAGE_SIZE = 100;
     private static final int MAX_IDS = 100;
     private static final Set<String> STATUSES = Set.of("DRAFT", "PUBLISHED", "ARCHIVED", "ALL");
@@ -43,7 +43,7 @@ public class ExerciseSearchService {
      */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, timeout = 10)
     public PageResult<ExerciseRow> search(String query, String status, String page, String pageSize, String ids) {
-        String pattern = searchPattern(query);
+        String pattern = LiteralSearch.containsPattern(query);
         String normalizedStatus = normalizeStatus(status);
         int parsedPage = positiveInteger(page, 1, Integer.MAX_VALUE, "page");
         int parsedPageSize = positiveInteger(pageSize, 20, MAX_PAGE_SIZE, "pageSize");
@@ -59,16 +59,6 @@ public class ExerciseSearchService {
         List<ExerciseRow> items = offset >= total ? List.of()
             : mapper.searchExercises(pattern, normalizedStatus, selectedIds, categoryAliases, parsedPageSize, offset);
         return new PageResult<>(items, total, parsedPage, parsedPageSize);
-    }
-
-    private String searchPattern(String query) {
-        if (query == null || query.isBlank()) return null;
-        String normalized = query.trim();
-        if (normalized.codePointCount(0, normalized.length()) > MAX_QUERY_LENGTH) {
-            throw invalid("搜索词不能超过 80 个字符");
-        }
-        // 先转义转义符自身，阻止搜索词被解释为 SQL LIKE 通配符。
-        return "%" + normalized.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
 
     private String normalizeStatus(String status) {
